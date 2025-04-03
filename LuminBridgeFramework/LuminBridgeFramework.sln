@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lumin Bridge WPF", "Lumin Bridge WPF.csproj", "{3DA0D02F-805F-454A-859E-DFC2DD47F915}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuminBridgeFramework", "LuminBridgeFramework.csproj", "{B3D180C8-9314-4560-AB9E-460A98E6195D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3DA0D02F-805F-454A-859E-DFC2DD47F915}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3DA0D02F-805F-454A-859E-DFC2DD47F915}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3DA0D02F-805F-454A-859E-DFC2DD47F915}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3DA0D02F-805F-454A-859E-DFC2DD47F915}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3D180C8-9314-4560-AB9E-460A98E6195D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3D180C8-9314-4560-AB9E-460A98E6195D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3D180C8-9314-4560-AB9E-460A98E6195D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3D180C8-9314-4560-AB9E-460A98E6195D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {FC24FF98-58F2-4D47-951C-112CC70BF7AC}
+		SolutionGuid = {120E7CAE-6F7D-4573-9308-032FA4A0D259}
 	EndGlobalSection
 EndGlobal
