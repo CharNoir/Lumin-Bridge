@@ -1,5 +1,6 @@
 ﻿using Gma.System.MouseKeyHook;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
@@ -10,58 +11,72 @@ namespace LuminBridgeFramework
 {
     public partial class MainForm : Form
     {
-        private NotifyIcon trayIcon;
-
+        private List<NotifyIcon> trayIcons = new List<NotifyIcon>();
+        private MonitorManager monitorManager;
         private IKeyboardMouseEvents _hook;
-        private IntPtr _iconHwnd;
-        private int _iconId;
 
         public MainForm()
         {
             InitializeComponent();
-            InitializeTray();
+            monitorManager = new MonitorManager(); // Get all monitors
+            CreateTrayIcons();
         }
 
-        private void InitializeTray()
+        private void CreateTrayIcons()
         {
-            trayIcon = new NotifyIcon
-            {
-                Icon = SystemIcons.Information,
-                Text = "Lumin Tray",
-                Visible = true
-            };
-
-            trayIcon.MouseClick += TrayIcon_MouseClick;
-
-            TestTrayIconLocation(trayIcon);
-
             _hook = Hook.GlobalEvents();
             _hook.MouseWheel += Global_MouseWheel;
+
+            foreach (var monitor in monitorManager.Monitors)
+            {
+                var trayIcon = new NotifyIcon
+                {
+                    Icon = SystemIcons.Information,
+                    Text = $"Monitor {monitor.MonitorName}",
+                    Visible = true
+                };
+
+                trayIcon.MouseClick += (sender, args) =>
+                {
+                    if (args.Button == MouseButtons.Left)
+                    {
+                        MessageBox.Show($"Settings for {monitor.MonitorName}");
+                    }
+                };
+
+                // Set the ID and HWND for the tray icon
+                SetTrayIconDetails(trayIcon, monitor);
+
+                trayIcons.Add(trayIcon);
+            }
         }
 
         private void Global_MouseWheel(object sender, MouseEventArgs e)
         {
-            var iconRect = GetTrayIconRect(_iconHwnd, (uint)_iconId);
-            var pt = Cursor.Position;
-
-            bool inside = iconRect.Contains(pt);
-            Debug.WriteLine($"Scroll detected at {pt}, icon rect: ({iconRect.left},{iconRect.top} → {iconRect.right},{iconRect.bottom}), inside? {inside}");
-
-            if (inside)
+            foreach (var monitor in monitorManager.Monitors)
             {
-                Debug.WriteLine("Scroll is over tray icon");
-                // TODO
+                var iconRect = GetTrayIconRect(monitor.IconHwnd, (uint)monitor.IconId);
+                var pt = Cursor.Position;
+
+                bool inside = iconRect.Contains(pt);
+                Debug.WriteLine($"Scroll detected at {pt}, icon rect: ({iconRect.left},{iconRect.top} → {iconRect.right},{iconRect.bottom}), inside? {inside}");
+
+                if (inside)
+                {
+                    // Scroll detected over this tray icon
+                    AdjustMonitorBrightness(monitor, e.Delta);
+                }
             }
         }
 
-
-        private void TrayIcon_MouseClick(object sender, MouseEventArgs e)
+        private void AdjustMonitorBrightness(Monitor monitor, int delta)
         {
-            if (e.Button == MouseButtons.Left)
-                MessageBox.Show("Tray icon clicked!");
+            int brightnessChange = delta > 0 ? 5 : -5;
+            monitor.AdjustBrightness(monitor.GetBrightness() + brightnessChange);
+            Console.WriteLine($"Adjusting brightness for {monitor.MonitorName}: {monitor.GetBrightness() + brightnessChange}%");
         }
 
-        private void TestTrayIconLocation(NotifyIcon icon)
+        private void SetTrayIconDetails(NotifyIcon trayIcon, Monitor monitor)
         {
             var idField = typeof(NotifyIcon).GetField("id", BindingFlags.NonPublic | BindingFlags.Instance);
             var windowField = typeof(NotifyIcon).GetField("window", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -72,18 +87,27 @@ namespace LuminBridgeFramework
                 return;
             }
 
-            int id = (int)idField.GetValue(icon);
-            NativeWindow nativeWindow = (NativeWindow)windowField.GetValue(icon);
+            int id = (int)idField.GetValue(trayIcon);
+            NativeWindow nativeWindow = (NativeWindow)windowField.GetValue(trayIcon);
             IntPtr hwnd = nativeWindow?.Handle ?? IntPtr.Zero;
 
-            Debug.WriteLine($"Icon ID = {id}");
-            Debug.WriteLine($"HWND = 0x{hwnd.ToInt64():X}");
+            monitor.IconId = id;
+            monitor.IconHwnd = hwnd;
 
-            var rect = GetTrayIconRect(hwnd, (uint)id);
-            Debug.WriteLine($"Icon Rect: {rect.left},{rect.top} → {rect.right},{rect.bottom}");
+            Debug.WriteLine($"Monitor {monitor.MonitorName} - Icon ID = {id}");
+            Debug.WriteLine($"Monitor {monitor.hmonitor} ");
+        }
 
-            _iconId = id;
-            _iconHwnd = hwnd;
+        // Dispose the tray icons properly when the form closes
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            foreach (var trayIcon in trayIcons)
+            {
+                trayIcon.Visible = false;
+                trayIcon.Dispose();
+            }
+
+            base.OnFormClosing(e);
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -113,7 +137,7 @@ namespace LuminBridgeFramework
         [DllImport("shell32.dll", SetLastError = true)]
         private static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
 
-        public RECT GetTrayIconRect(IntPtr hwnd, uint id)
+        private RECT GetTrayIconRect(IntPtr hwnd, uint id)
         {
             var nid = new NOTIFYICONIDENTIFIER
             {

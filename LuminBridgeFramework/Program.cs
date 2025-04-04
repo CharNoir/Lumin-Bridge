@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Management;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,4 +20,6 @@ namespace LuminBridgeFramework
             Application.Run(new MainForm());
         }
     }
+
+       
 }
