@@ -56,7 +56,7 @@ namespace LuminBridgeFramework
                 {
                     if (MonitorBrightnessControl.GetPhysicalMonitorsFromHMONITOR(hMonitor, 1, out var monitor))
                     {
-                        MonitorBrightnessControl.SetMonitorBrightness(monitor.hPhysicalMonitor, 70); // Example brightness
+                        MonitorBrightnessControl.SetMonitorBrightness(monitor.hPhysicalMonitor, brightness); 
                         MonitorBrightnessControl.DestroyPhysicalMonitor(monitor.hPhysicalMonitor);
                     }
                     return true;
