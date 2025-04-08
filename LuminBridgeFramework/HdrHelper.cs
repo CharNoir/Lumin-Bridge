@@ -26,6 +26,9 @@ namespace LuminBridgeFramework
 
         public static HdrMonitorInfo GetMonitorStatus(string deviceName, bool forceRefresh = false)
         {
+            if (string.IsNullOrEmpty(deviceName))
+                return null;
+
             var map = GetHdrStatus(forceRefresh);
             return map.TryGetValue(deviceName, out var info) ? info : null;
         }

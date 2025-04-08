@@ -44,7 +44,7 @@ namespace LuminBridgeFramework
                 Console.WriteLine("Failed to get monitor information.");
             }
 
-            var monitor = new Monitor(deviceName.TrimEnd('\0'));
+            var monitor = Monitor.Load(deviceName.TrimEnd('\0'));
 
             monitor.hmonitor = hMonitor;
 

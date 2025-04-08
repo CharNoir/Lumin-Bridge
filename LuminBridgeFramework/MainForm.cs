@@ -32,7 +32,7 @@ namespace LuminBridgeFramework
                 var trayIcon = new NotifyIcon
                 {
                     Icon = SystemIcons.Information,
-                    Text = $"Monitor {monitor.MonitorName}",
+                    Text = $"{monitor.FriendlyName}",
                     Visible = true
                 };
 
@@ -40,7 +40,7 @@ namespace LuminBridgeFramework
                 {
                     if (args.Button == MouseButtons.Left)
                     {
-                        MessageBox.Show($"Settings for {monitor.MonitorName}");
+                        MessageBox.Show($"Settings for {monitor.Name}");
                     }
                 };
 
@@ -59,7 +59,7 @@ namespace LuminBridgeFramework
                 var pt = Cursor.Position;
 
                 bool inside = iconRect.Contains(pt);
-                Debug.WriteLine($"Scroll detected at {pt}, icon rect: ({iconRect.left},{iconRect.top} → {iconRect.right},{iconRect.bottom}), inside? {inside}");
+                //Debug.WriteLine($"Scroll detected at {pt}, icon rect: ({iconRect.left},{iconRect.top} → {iconRect.right},{iconRect.bottom}), inside? {inside}");
 
                 if (inside)
                 {
@@ -93,7 +93,7 @@ namespace LuminBridgeFramework
             monitor.IconId = id;
             monitor.IconHwnd = hwnd;
 
-            Debug.WriteLine($"Monitor {monitor.MonitorName} - Icon ID = {id}");
+            Debug.WriteLine($"Monitor {monitor.Name} - Icon ID = {id}");
             Debug.WriteLine($"Monitor {monitor.hmonitor} ");
         }
 

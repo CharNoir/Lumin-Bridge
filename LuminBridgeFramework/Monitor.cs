@@ -1,8 +1,14 @@
 ﻿using System;
+using System.IO;
+using System.Management;
 using System.Runtime.InteropServices;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using static LuminBridgeFramework.Program;
 
 namespace LuminBridgeFramework
 {
+    [JsonObject(MemberSerialization.OptIn)]
     public class Monitor
     {
         // ───────────────────────────────────────────────────────────────
@@ -11,29 +17,64 @@ namespace LuminBridgeFramework
         private int _maxBrightnessNits; // in nits
         private int _maxBrightness = 100;
         private int _minBrightness = 0;
+        [JsonProperty("brightness")]
         private int _brightness;
+        [JsonProperty("sdrToHdrWhiteLevel")]
         private int _sdrToHdrWhiteLevel;
         private bool _isHdrEnabled = false;
+        private static string ConfigDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs");
 
         // ───────────────────────────────────────────────────────────────
         // 🔷 Properties
         // ───────────────────────────────────────────────────────────────
         public IntPtr hmonitor { get; set; }
-        public string MonitorName { get; private set; }
+        [JsonProperty("name")]
+        public string Name { get; private set; }
+        [JsonProperty("friendlyName")]
+        public string FriendlyName { get; private set; }
         public IntPtr IconHwnd { get; set; }
         public int IconId { get; set; }
 
         // ───────────────────────────────────────────────────────────────
-        // 🔷 Constructor
+        // 🔷 Constructors
         // ───────────────────────────────────────────────────────────────
+
+        public Monitor() { }
+
         /// <summary>
         /// Initializes a new instance of the Monitor class with a specified monitor name.
         /// </summary>
         /// <param name="monitorName">The monitor's friendly name.</param>
-        public Monitor(string monitorName)
+        private Monitor(string monitorName)
         {
-            MonitorName = monitorName;
-            UpdateMonitorInfo();
+            Name = monitorName;
+            FriendlyName = ParseUserFriendlyName(GetHwdName(Name));
+
+            Console.WriteLine($"HDR Enabled : {_isHdrEnabled}");
+            Console.WriteLine($"FriendlyName: {FriendlyName}");
+        }
+
+        public static Monitor Load(string monitorName)
+        {
+            string path = Path.Combine(ConfigDirectory, $"{MakeSafeFileName(monitorName)}.json");
+            if (!File.Exists(path))
+            {
+                // No config? Create new instance
+                return new Monitor(monitorName);
+            }
+
+            var settings = new JsonSerializerSettings
+            {
+                ContractResolver = new DefaultContractResolver
+                {
+                    IgnoreSerializableAttribute = true
+                },
+                MissingMemberHandling = MissingMemberHandling.Ignore
+            };
+
+            var monitor = JsonConvert.DeserializeObject<Monitor>(File.ReadAllText(path), settings);
+            monitor.UpdateMonitorInfo(); // Optional: refresh runtime values
+            return monitor;
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -49,7 +90,7 @@ namespace LuminBridgeFramework
             UpdateMonitorInfo();
 
             int desiredBrightness = GetBrightness() + brightnessChange;
-            Console.WriteLine($"Adjusting brightness for {MonitorName}: {desiredBrightness}%");
+            Console.WriteLine($"Adjusting brightness for {Name}: {desiredBrightness}%");
             SetBrightness(desiredBrightness);
         }
 
@@ -60,7 +101,6 @@ namespace LuminBridgeFramework
         public void SetBrightness(int desiredBrightness)
         {
             desiredBrightness = Clamp(desiredBrightness, _minBrightness, _maxBrightness);
-            _brightness = desiredBrightness;
 
             //UpdateMonitorInfo();
 
@@ -68,6 +108,8 @@ namespace LuminBridgeFramework
                 AdjustHdrBrightness(desiredBrightness);
             else
                 AdjustSdrBrightness(desiredBrightness);
+
+            SaveConfig();
         }
 
         /// <summary>
@@ -75,8 +117,7 @@ namespace LuminBridgeFramework
         /// </summary>
         public void UpdateMonitorInfo()
         {
-            _isHdrEnabled = HdrHelper.GetMonitorHdrStatus(MonitorName);
-            Console.WriteLine($"HDR Enabled: {_isHdrEnabled}");
+            _isHdrEnabled = HdrHelper.GetMonitorHdrStatus(Name);
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -98,6 +139,7 @@ namespace LuminBridgeFramework
         /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
         private void AdjustSdrBrightness(int desiredBrightness)
         {
+            _brightness = desiredBrightness;
             if (GetPhysicalMonitorsFromHMONITOR(hmonitor, 1, out var monitor))
             {
                 SetMonitorBrightness(monitor.hPhysicalMonitor, (uint)desiredBrightness);
@@ -111,6 +153,7 @@ namespace LuminBridgeFramework
         /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
         private void AdjustHdrBrightness(int desiredBrightness)
         {
+            _sdrToHdrWhiteLevel = desiredBrightness;
             if (IconHwnd == IntPtr.Zero)
             {
                 Console.WriteLine("Error: Monitor handle (hWnd) is not set.");
@@ -122,7 +165,6 @@ namespace LuminBridgeFramework
                 GetProcAddress(hmodule, 171)
             );
 
-            _sdrToHdrWhiteLevel = desiredBrightness;
             changeBrightness(hmonitor, PercentToMagic(desiredBrightness));
         }
 
@@ -166,6 +208,103 @@ namespace LuminBridgeFramework
             return success;
         }
 
+        private static string GetHwdName(string deviceName)
+        {
+            DISPLAY_DEVICE dd = new DISPLAY_DEVICE();
+            dd.cb = Marshal.SizeOf(dd);
+
+            bool success = EnumDisplayDevices(deviceName, 0, ref dd, 0);
+            if (!success || string.IsNullOrEmpty(dd.DeviceID)) return "";
+
+            return ExtractHardwareId(dd.DeviceID);
+        }
+
+        private static string ExtractHardwareId(string deviceId)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId)) return null;
+
+            string[] parts = deviceId.Split('\\');
+
+            return parts.Length >= 2 ? parts[1] : null;
+        }
+
+        private static string ParseUserFriendlyName(string szMatch)
+        {
+            try
+            {
+                var searcher = new ManagementObjectSearcher(@"root\wmi", "SELECT * FROM WmiMonitorID");
+
+                foreach (var obj in searcher.Get())
+                {
+                    var instanceName = obj["InstanceName"];
+                    var userFriendlyName = ToAscii((ushort[])obj["UserFriendlyName"]);
+                    if (szMatch.Equals(ExtractHardwareId(instanceName?.ToString()))) return userFriendlyName;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error while querying WmiMonitorID:");
+                Console.WriteLine(ex);
+            }
+            return "";
+        }
+
+        private static string ToAscii(ushort[] data)
+        {
+            if (data == null) return "(null)";
+            return new string(Array.ConvertAll(data, x => (char)x)).TrimEnd('\0');
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Config Persistence
+        // ───────────────────────────────────────────────────────────────
+
+        public void SaveConfig()
+        {
+            if (!Directory.Exists(ConfigDirectory))
+                Directory.CreateDirectory(ConfigDirectory);
+
+            var settings = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new DefaultContractResolver
+                {
+                    IgnoreSerializableAttribute = true // Only serialize members with [JsonProperty]
+                },
+                MissingMemberHandling = MissingMemberHandling.Ignore // Enforce opt-in
+            };
+
+            File.WriteAllText(GetConfigPath(), JsonConvert.SerializeObject(this, settings));
+        }
+
+        public void LoadConfig()
+        {
+            string path = GetConfigPath();
+            if (!File.Exists(path)) return;
+
+            var loaded = JsonConvert.DeserializeObject<Monitor>(File.ReadAllText(path));
+            if (loaded?.Name == Name)
+            {
+                _brightness = loaded._brightness;
+                _sdrToHdrWhiteLevel = loaded._sdrToHdrWhiteLevel;
+            }
+        }
+
+        private string GetConfigPath()
+        {
+            string safeFileName = MakeSafeFileName(Name);
+            return Path.Combine(ConfigDirectory, $"{safeFileName}.json");
+        }
+
+        private static string MakeSafeFileName(string name)
+        {
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                name = name.Replace(c, '_');
+            }
+            return name;
+        }
+
         // ───────────────────────────────────────────────────────────────
         // 🔷 Win32 Interop
         // ───────────────────────────────────────────────────────────────
@@ -191,6 +330,9 @@ namespace LuminBridgeFramework
             [Out] PHYSICAL_MONITOR[] monitors
         );
 
+        [DllImport("user32.dll", CharSet = CharSet.Ansi)]
+        public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         private struct PHYSICAL_MONITOR
         {
@@ -199,5 +341,26 @@ namespace LuminBridgeFramework
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
             public string szPhysicalMonitorDescription;
         }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct DISPLAY_DEVICE
+        {
+            public int cb;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string DeviceName;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string DeviceString;
+
+            public int StateFlags;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string DeviceID;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string DeviceKey;
+        }
+
     }
 }
