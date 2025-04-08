@@ -72,8 +72,7 @@ namespace LuminBridgeFramework
         private void AdjustMonitorBrightness(Monitor monitor, int delta)
         {
             int brightnessChange = delta > 0 ? 5 : -5;
-            monitor.AdjustBrightness(monitor.GetBrightness() + brightnessChange);
-            Console.WriteLine($"Adjusting brightness for {monitor.MonitorName}: {monitor.GetBrightness() + brightnessChange}%");
+            monitor.AdjustBrightness(brightnessChange);
         }
 
         private void SetTrayIconDetails(NotifyIcon trayIcon, Monitor monitor)

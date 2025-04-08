@@ -1,104 +1,114 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace LuminBridgeFramework
 {
     public class Monitor
     {
-        // External imports
-        [DllImport("kernel32", CharSet = CharSet.Unicode)]
-        static extern IntPtr LoadLibrary(string lpFileName);
-
-        [DllImport("kernel32", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
-        static extern IntPtr GetProcAddress(IntPtr hModule, int address);
-
-        private delegate void DwmpSDRToHDRBoostPtr(IntPtr monitor, double brightness);
-
-        // Properties
-        public IntPtr hmonitor { get; set; }
-        public string MonitorName { get; private set; }
-
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Fields
+        // ───────────────────────────────────────────────────────────────
         private int _maxBrightnessNits; // in nits
-
-        // In percent
-        private int _maxBrightness;
-        private int _minBrightness;
+        private int _maxBrightness = 100;
+        private int _minBrightness = 0;
         private int _brightness;
         private int _sdrToHdrWhiteLevel;
-
-        public IntPtr IconHwnd { get; set; } 
-        public int IconId { get; set; }
-
-        public int getBrightness()
-        {
-            if (_isHdrEnabled)
-                return _sdrToHdrWhiteLevel;
-            else
-                return _brightness;
-        }
-
         private bool _isHdrEnabled = false;
 
-        public Monitor()
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Properties
+        // ───────────────────────────────────────────────────────────────
+        public IntPtr hmonitor { get; set; }
+        public string MonitorName { get; private set; }
+        public IntPtr IconHwnd { get; set; }
+        public int IconId { get; set; }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Constructor
+        // ───────────────────────────────────────────────────────────────
+        /// <summary>
+        /// Initializes a new instance of the Monitor class with a specified monitor name.
+        /// </summary>
+        /// <param name="monitorName">The monitor's friendly name.</param>
+        public Monitor(string monitorName)
         {
-            STDM();
+            MonitorName = monitorName;
+            UpdateMonitorInfo();
         }
 
-        public Monitor(string monitorId)
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Public Methods
+        // ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Adjusts monitor brightness by a given value. Chooses HDR or SDR method based on monitor status.
+        /// </summary>
+        /// <param name="desiredBrightness">Desired brightness percentage change (0–100).</param>
+        public void AdjustBrightness(int brightnessChange)
         {
-            MonitorName = monitorId;
-            STDM();
+            UpdateMonitorInfo();
+
+            int desiredBrightness = GetBrightness() + brightnessChange;
+            Console.WriteLine($"Adjusting brightness for {MonitorName}: {desiredBrightness}%");
+            SetBrightness(desiredBrightness);
         }
 
-        public void STDM()
-        {
-            _isHdrEnabled = true;
-
-            _minBrightness = 0;
-            _maxBrightness = 100;
-        }
-
-        public void UpdateMonitorInfo()
-        {
-
-            // Update:
-            // _maxBrightnessNits
-            // _brightness
-            // _sdrToHdrWhiteLevel
-            Console.WriteLine(_isHdrEnabled);
-        }
-
-        public void AdjustBrightness(int desiredBrightness)
+        /// <summary>
+        /// Sets monitor brightness. Chooses HDR or SDR method based on monitor status.
+        /// </summary>
+        /// <param name="desiredBrightness">Desired brightness percentage (0–100).</param>
+        public void SetBrightness(int desiredBrightness)
         {
             desiredBrightness = Clamp(desiredBrightness, _minBrightness, _maxBrightness);
             _brightness = desiredBrightness;
-            UpdateMonitorInfo();
+
+            //UpdateMonitorInfo();
+
             if (_isHdrEnabled)
                 AdjustHdrBrightness(desiredBrightness);
             else
                 AdjustSdrBrightness(desiredBrightness);
-
-            //MonitorBrightnessControl.SetBrightnessAllMonitors((uint)desiredBrightness);
         }
 
-        public static int Clamp(int value, int min, int max)
+        /// <summary>
+        /// Updates monitor information such as HDR status.
+        /// </summary>
+        public void UpdateMonitorInfo()
         {
-            if (value < min) return min;
-            if (value > max) return max;
-            return value;
+            _isHdrEnabled = HdrHelper.GetMonitorHdrStatus(MonitorName);
+            Console.WriteLine($"HDR Enabled: {_isHdrEnabled}");
         }
 
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Private Methods
+        // ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Gets the current brightness level depending on HDR status.
+        /// </summary>
+        /// <returns>Brightness value (percent or HDR white level).</returns>
+        private int GetBrightness()
+        {
+            return _isHdrEnabled ? _sdrToHdrWhiteLevel : _brightness;
+        }
+
+        /// <summary>
+        /// Adjusts brightness using SDR-compatible APIs (Dxva2).
+        /// </summary>
+        /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
         private void AdjustSdrBrightness(int desiredBrightness)
         {
-
+            if (GetPhysicalMonitorsFromHMONITOR(hmonitor, 1, out var monitor))
+            {
+                SetMonitorBrightness(monitor.hPhysicalMonitor, (uint)desiredBrightness);
+                DestroyPhysicalMonitor(monitor.hPhysicalMonitor);
+            }
         }
 
+        /// <summary>
+        /// Adjusts brightness using HDR-specific white level manipulation.
+        /// </summary>
+        /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
         private void AdjustHdrBrightness(int desiredBrightness)
         {
             if (IconHwnd == IntPtr.Zero)
@@ -107,27 +117,87 @@ namespace LuminBridgeFramework
                 return;
             }
 
-            var hmodule_dwmapi = LoadLibrary("dwmapi.dll");
-            DwmpSDRToHDRBoostPtr changeBrightness = Marshal.GetDelegateForFunctionPointer<DwmpSDRToHDRBoostPtr>(GetProcAddress(hmodule_dwmapi, 171));
+            var hmodule = LoadLibrary("dwmapi.dll");
+            var changeBrightness = Marshal.GetDelegateForFunctionPointer<DwmpSDRToHDRBoostPtr>(
+                GetProcAddress(hmodule, 171)
+            );
 
             _sdrToHdrWhiteLevel = desiredBrightness;
-            changeBrightness(hmonitor, percentToMagic(desiredBrightness));
+            changeBrightness(hmonitor, PercentToMagic(desiredBrightness));
         }
 
-        public int GetBrightness()
+        /// <summary>
+        /// Clamps a value between a given minimum and maximum.
+        /// </summary>
+        /// <param name="value">Input value.</param>
+        /// <param name="min">Minimum limit.</param>
+        /// <param name="max">Maximum limit.</param>
+        /// <returns>Clamped value.</returns>
+        private static int Clamp(int value, int min, int max)
         {
-            return _brightness;
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
         }
 
-        // TODO
-        private double percentToMagic(int percent)
+        /// <summary>
+        /// Converts brightness percentage to HDR "magic number" white level.
+        /// </summary>
+        /// <param name="percent">Brightness percentage (0–100).</param>
+        /// <returns>Converted HDR white level.</returns>
+        private double PercentToMagic(int percent)
         {
-            // TODO create more complex conversion
+            // Placeholder for more complex conversion logic
             return percent / 100.0 * 6.0;
         }
-        private int magicToPercent(double magic)
+
+        /// <summary>
+        /// Retrieves a physical monitor structure from a HMONITOR handle.
+        /// </summary>
+        /// <param name="hMonitor">Monitor handle.</param>
+        /// <param name="count">Number of monitors to retrieve.</param>
+        /// <param name="monitor">Out: retrieved monitor struct.</param>
+        /// <returns>True if successful.</returns>
+        private static bool GetPhysicalMonitorsFromHMONITOR(IntPtr hMonitor, uint count, out PHYSICAL_MONITOR monitor)
         {
-            return (int)Math.Round(magic * 100.0 / 6.0);
+            var array = new PHYSICAL_MONITOR[1];
+            bool success = GetPhysicalMonitorsFromHMONITOR(hMonitor, count, array);
+            monitor = array[0];
+            return success;
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Win32 Interop
+        // ───────────────────────────────────────────────────────────────
+
+        [DllImport("kernel32", CharSet = CharSet.Unicode)]
+        private static extern IntPtr LoadLibrary(string lpFileName);
+
+        [DllImport("kernel32", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
+        private static extern IntPtr GetProcAddress(IntPtr hModule, int address);
+
+        private delegate void DwmpSDRToHDRBoostPtr(IntPtr monitor, double brightness);
+
+        [DllImport("Dxva2.dll", SetLastError = true)]
+        private static extern bool SetMonitorBrightness(IntPtr hMonitor, uint dwNewBrightness);
+
+        [DllImport("Dxva2.dll", SetLastError = true)]
+        private static extern bool DestroyPhysicalMonitor(IntPtr hMonitor);
+
+        [DllImport("Dxva2.dll", SetLastError = true)]
+        private static extern bool GetPhysicalMonitorsFromHMONITOR(
+            IntPtr hMonitor,
+            uint count,
+            [Out] PHYSICAL_MONITOR[] monitors
+        );
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private struct PHYSICAL_MONITOR
+        {
+            public IntPtr hPhysicalMonitor;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string szPhysicalMonitorDescription;
         }
     }
 }

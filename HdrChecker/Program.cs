@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Management;
-using System.Text.Json;
+﻿using System.Text.Json;
 using HdrChecker;
 using Vortice.DXGI;
 using static Vortice.DXGI.DXGI;

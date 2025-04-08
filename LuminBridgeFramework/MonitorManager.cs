@@ -1,14 +1,7 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Management;
 using System.Runtime.InteropServices;
-using System.Text;
 using static LuminBridgeFramework.MainForm;
-using static LuminBridgeFramework.MonitorManager;
-using static LuminBridgeFramework.Program;
 
 namespace LuminBridgeFramework
 {
@@ -18,8 +11,6 @@ namespace LuminBridgeFramework
         private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumProc lpfnEnum, IntPtr dwData);
         [DllImport("user32.dll", CharSet = CharSet.Ansi)]
         private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool EnumDisplaySettings(string lpszDeviceName, uint iModeNum, ref DEVMODE lpDevMode);
 
         public delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT lprcClip, IntPtr dwData);
 
@@ -38,45 +29,27 @@ namespace LuminBridgeFramework
 
         private bool MonitorEnumCallback(IntPtr hMonitor, IntPtr hdc, ref RECT lprcClip, IntPtr dwData)
         {
-            MonitorBrightnessControl.SetBrightnessAllMonitors(100);
-
             MONITORINFOEX monitorInfo = new MONITORINFOEX();
             monitorInfo.cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFOEX));
 
-            // Get monitor info
+            string deviceName = "";
             if (GetMonitorInfo(hMonitor, ref monitorInfo))
             {
-                string deviceName = new string(monitorInfo.szDevice);
-                Console.WriteLine($"Monitor Device: {deviceName.TrimEnd('\0')}");
-
-                DEVMODE devMode = new DEVMODE();
-                devMode.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
-
-                if (EnumDisplaySettings(deviceName, 0, ref devMode))
-                {
-                    Console.WriteLine($"Resolution: {devMode.dmPelsWidth} x {devMode.dmPelsHeight}");
-                    Console.WriteLine($"Color Depth: {devMode.dmBitsPerPel} bits per pixel");
-                    Console.WriteLine($"Refresh Rate: {devMode.dmDisplayFlags}");
-                }
-                else
-                {
-                    Console.WriteLine("Failed to get display settings.");
-                }
+                deviceName = new string(monitorInfo.szDevice);
+                Console.WriteLine($"\nMonitor Device: {deviceName.TrimEnd('\0')}");
+                Console.WriteLine($"Monitor Handle: {hMonitor}");
             }
             else
             {
                 Console.WriteLine("Failed to get monitor information.");
             }
 
-            var monitor = new Monitor($"Monitor {hMonitor}");
+            var monitor = new Monitor(deviceName.TrimEnd('\0'));
 
             monitor.hmonitor = hMonitor;
 
             // Store the monitor in the list
             Monitors.Add(monitor);
-
-            Console.WriteLine("Monitor Details:");
-            Console.WriteLine($"Monitor Handle: {hMonitor}");
 
             return true; 
         }
