@@ -1,5 +1,6 @@
 #pragma once
 #include <RotaryEncoder.h>
+#include "Protocol.h"
 
 class MenuSystem;
 
@@ -11,7 +12,10 @@ public:
 
 private:
     void handleButton();
-    void sendUpdateToPC();
+    void handleEncoder();
+    void sendUpdate(uint8_t id, uint8_t value, DeviceType type);
+    void sendUpdate();
+    void readSerial();
 
     MenuSystem* menuSystem;
     long lastPos = 0;

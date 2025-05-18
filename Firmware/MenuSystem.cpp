@@ -1,48 +1,33 @@
 #include "MenuSystem.h"
+#include "DeviceStorage.h"
 #include <Adafruit_SSD1306.h>
 
 extern Adafruit_SSD1306 display;
 
-Menu::Menu(String t, std::initializer_list<Device> d) : title(t), devices(d) {}
-
-void Menu::nextDevice() {
-    selectedDevice = (selectedDevice + 1) % devices.size();
-}
-
-void Menu::adjustValue(int delta) {
-    Device& dev = devices[selectedDevice];
-    dev.value = constrain(dev.value + delta, 0, 100);
-}
-
-String Menu::currentDeviceName() const {
-    return devices[selectedDevice].name;
-}
-
-int Menu::currentDeviceValue() const {
-    return devices[selectedDevice].value;
-}
-
-int Menu::deviceCount() const {
-    return devices.size();
-}
-
 void MenuSystem::begin() {
-    menus.push_back(Menu("Volume", {
-        { "Realtek Audio", 50 },
-        { "CX31993 DAC", 40 }
-    }));
-    menus.push_back(Menu("Brightness", {
-        { "Monitor 1", 80 },
-        { "Monitor 2", 70 }
-    }));
+    // already initialized via FullSyncPacket
+    activeMenuIndex = 0;
+    for (int i = 0; i < DEVICE_TYPE_COUNT; ++i) {
+        selectedDeviceIndex[i] = 0;
+    }
 }
 
 void MenuSystem::nextMenu() {
-    activeMenu = (activeMenu + 1) % menus.size();
+    activeMenuIndex = (activeMenuIndex + 1) % DEVICE_TYPE_COUNT;
 }
 
-Menu& MenuSystem::current() {
-    return menus[activeMenu];
+void MenuSystem::nextDevice() {
+    uint8_t& index = selectedDeviceIndex[activeMenuIndex];
+    index = (index + 1) % deviceCountPerType[activeMenuIndex];
+}
+
+void MenuSystem::adjustValue(int delta) {
+    Device& dev = *currentDevice();
+    dev.value = constrain(dev.value + delta, 0, 100);
+}
+
+Device* MenuSystem::currentDevice() {
+    return &deviceMatrix[activeMenuIndex][selectedDeviceIndex[activeMenuIndex]];
 }
 
 void MenuSystem::update() {
@@ -51,19 +36,19 @@ void MenuSystem::update() {
 
 void MenuSystem::displayCurrent() {
     display.clearDisplay();
-    Menu& m = current();
+    Device* dev = currentDevice();
 
     display.setCursor(0, 0);
-    display.printf("Menu: %s\n", m.title.c_str());
+    display.printf("Menu: %s\n", activeMenuIndex == Volume ? "Volume" : "Brightness");
 
     display.setCursor(0, 16);
-    display.printf("Device %d/%d:", m.selectedDevice + 1, m.deviceCount());
+    display.printf("Device %d/%d:", selectedDeviceIndex[activeMenuIndex] + 1, deviceCountPerType[activeMenuIndex]);
 
     display.setCursor(0, 32);
-    display.println(m.currentDeviceName());
+    display.println(dev->name);
 
     display.setCursor(0, 48);
-    display.printf("Value: %d %%", m.currentDeviceValue());
+    display.printf("Value: %d %%", dev->value);
 
     display.display();
 }
