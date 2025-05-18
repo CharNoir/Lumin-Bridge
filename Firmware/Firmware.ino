@@ -11,6 +11,7 @@ Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Hello from ESP!");
   hw.begin();
   menuSystem.begin();
 }

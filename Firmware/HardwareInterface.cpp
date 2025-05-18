@@ -1,76 +1,79 @@
 #include "HardwareInterface.h"
-#include "MenuSystem.h"
-#include "Protocol.h"
 #include "DeviceStorage.h"
+#include <Wire.h>
 #include <Adafruit_SSD1306.h>
 
-#define ENCODER_PIN_A 2
-#define ENCODER_PIN_B 3
-#define ENCODER_BTN   4
-#define MODE_BTN      5
-
 extern Adafruit_SSD1306 display;
-RotaryEncoder encoder(ENCODER_PIN_A, ENCODER_PIN_B, RotaryEncoder::LatchMode::TWO03);
-
+Button modeBtn = Button(MODE_BTN);
+MenuSystem* HardwareInterface::staticMenuSystem = nullptr;
 bool handshakeCompleted = false;
 
-HardwareInterface::HardwareInterface(MenuSystem* ms) : menuSystem(ms) {}
+HardwareInterface::HardwareInterface(MenuSystem* ms)
+    : menuSystem(ms),
+      enc(ENCODER_PIN_A, ENCODER_PIN_B, ENCODER_BTN) {}
 
 void HardwareInterface::begin() {
-    pinMode(ENCODER_BTN, INPUT_PULLUP);
+    staticMenuSystem = menuSystem;
     pinMode(MODE_BTN, INPUT_PULLUP);
-    encoder.setPosition(0);
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    pinMode(ENCODER_BTN, INPUT_PULLUP);
+
+    Wire.begin(OLED_SDA, OLED_SCL);
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+        Serial.println(F("SSD1306 allocation failed"));
+        while (true);
+    }
+
+    display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
+    display.setCursor(28, 28);
+    display.println("LUMIN BRIDGE");
+    display.display();
 
-    Serial.begin(115200);
-    delay(100);
-    Serial.println("LUMIN_READY");
+    delay(2000);
+
+    enc.setEncType(EB_STEP4_LOW);
+    enc.setBtnLevel(LOW);
+    modeBtn.setBtnLevel(LOW);
+
+    modeBtn.attach(onModeBtnEvent);
 }
 
 void HardwareInterface::update() {
+    enc.tick(); 
+    modeBtn.tick();
+
     handleEncoder();
-    handleEncoderButton();
-    handleModeButton();
     readSerial();
 }
 
-void HardwareInterface::handleModeButton() {
-    static bool lastState = HIGH;
-    bool current = digitalRead(MODE_BTN);
-    if (lastState == HIGH && current == LOW) {
-        menuSystem->nextMenu();
-    }
-    lastState = current;
-}
-
-void HardwareInterface::handleEncoderButton() {
-    static bool lastState = HIGH;
-    bool current = digitalRead(ENCODER_BTN);
-    if (!current && lastState) {
-        encoderHeld = true;
-    } else if (current && encoderHeld) {
-        encoderHeld = false;
-    }
-    lastEncoderBtnState = current;
-}
-
 void HardwareInterface::handleEncoder() {
-    encoder.tick();
-    long newPos = encoder.getPosition();
-    if (newPos != lastPos) {
-        int delta = (int)(newPos - lastPos);
-        lastPos = newPos;
-
-        if (encoderHeld) {
-            menuSystem->nextDevice();
-        } else {
-            menuSystem->adjustValue(delta);
-            sendUpdate();
-        }
+    if (enc.turnH()){
+        menuSystem->nextDevice();
+    }
+    else if (enc.turn()) {
+        int delta = enc.dir() > 0 ? ENCODER_VALUE_DELTA : -ENCODER_VALUE_DELTA;
+        menuSystem->adjustValue(delta);
+        sendUpdate();
     }
 }
+
+void HardwareInterface::onModeBtnEvent() {
+    switch (modeBtn.action()) {
+        /*
+        case EB_CLICK:
+            Serial.println("MODE button clicked");
+            if (staticMenuSystem) staticMenuSystem->nextMenu();
+            break;
+        */
+        case EB_RELEASE:
+            if (staticMenuSystem) staticMenuSystem->nextMenu();
+            break;
+        default:
+            break;
+    }
+}
+
 
 void HardwareInterface::sendUpdate(uint8_t id, uint8_t value, DeviceType type) {
     ValueReportPacket p = { ValueReport, id, value, type };
@@ -86,84 +89,106 @@ void HardwareInterface::sendUpdate() {
 }
 
 void HardwareInterface::readSerial() {
-    static String inputBuffer;
+    static enum { WAIT_FOR_HEADER, WAIT_FOR_LENGTH, WAIT_FOR_PAYLOAD } state = WAIT_FOR_HEADER;
     static uint8_t buffer[256];
-    static uint8_t index = 0;
     static uint8_t expectedLength = 0;
-    static bool receiving = false;
+    static uint8_t index = 0;
+    static String inputBuffer;
 
     while (Serial.available()) {
-        char ch = Serial.read();
+        uint8_t ch = Serial.read();
+        Serial.printf("[SERIAL] Raw byte: 0x%02X\n", ch);
 
         if (isPrintable(ch)) {
-            inputBuffer += ch;
+            inputBuffer += (char)ch;
             if (inputBuffer.endsWith("HELLO_LUMIN")) {
-                Serial.println("LUMIN_ACK");
+                Serial.println("[SERIAL] Received HELLO_LUMIN");
+                Serial.println("<< Sending LUMIN_ACK");
                 handshakeCompleted = true;
                 inputBuffer = "";
             } else if (inputBuffer.length() > 64) {
                 inputBuffer = "";
             }
-            continue;
         }
 
-        if (!handshakeCompleted)
-            return;
+        if (!handshakeCompleted) continue;
 
-        if (!receiving) {
-            if ((uint8_t)ch == 0xAA) {
+        switch (state) {
+            case WAIT_FOR_HEADER:
+                if (ch == 0xAA) {
+                    Serial.println(">> Start of new packet detected (0xAA)");
+                    state = WAIT_FOR_LENGTH;
+                }
+                break;
+
+            case WAIT_FOR_LENGTH:
+                expectedLength = ch;
                 index = 0;
-                receiving = true;
-                continue;
-            }
-        } else if (index == 0) {
-            expectedLength = (uint8_t)ch;
-            if (expectedLength > sizeof(buffer)) {
-                receiving = false;
-                continue;
-            }
-        } else {
-            buffer[index - 1] = (uint8_t)ch;
-        }
-
-        index++;
-
-        if (index == expectedLength + 2) {
-            receiving = false;
-
-            PacketType type = (PacketType)buffer[0];
-            if (type == FullSync) {
-                FullSyncPacket* p = (FullSyncPacket*)buffer;
-
-                for (int i = 0; i < DEVICE_TYPE_COUNT; ++i) {
-                    deviceCountPerType[i] = 0;
+                Serial.printf(">> Expected packet length: %d\n", expectedLength);
+                if (expectedLength > sizeof(buffer)) {
+                    Serial.println("!! Packet too large. Resetting.");
+                    state = WAIT_FOR_HEADER;
+                    break;
                 }
+                state = WAIT_FOR_PAYLOAD;
+                break;
 
-                for (int i = 0; i < p->count; ++i) {
-                    Device& d = p->devices[i];
-                    uint8_t typeIndex = (uint8_t)d.deviceType;
-                    uint8_t slot = deviceCountPerType[typeIndex];
-                    if (slot < MAX_DEVICE_PER_MENU) {
-                        deviceMatrix[typeIndex][slot] = d;
-                        deviceCountPerType[typeIndex]++;
+            case WAIT_FOR_PAYLOAD:
+                buffer[index++] = ch;
+                if (index == expectedLength) {
+                    state = WAIT_FOR_HEADER;
+
+                    PacketType type = (PacketType)buffer[0];
+                    Serial.printf(">> PacketType received: 0x%02X\n", type);
+
+                    if (type == FullSync) {
+                        Serial.println(">> Handling FullSync packet");
+                        FullSyncPacket* p = (FullSyncPacket*)buffer;
+                        for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
+                            deviceCountPerType[i] = 0;
+                        for (int i = 0; i < p->count; ++i) {
+                            Device& d = p->devices[i];
+                            uint8_t typeIndex = (uint8_t)d.deviceType;
+                            uint8_t slot = deviceCountPerType[typeIndex];
+                            if (slot < MAX_DEVICE_PER_MENU) {
+                                deviceMatrix[typeIndex][slot] = d;
+                                deviceCountPerType[typeIndex]++;
+                                Serial.printf(">> Added device: name=%s id=%d value=%d type=%d\n",
+                                              d.name, d.id, d.value, d.deviceType);
+                            }
+                        }
+                        for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
+                            selectedDeviceIndex[i] = 0;
+                        activeMenuIndex = 0;
+                        Serial.println(">> FullSync complete.");
+                    } else if (type == DeltaUpdate) {
+                        Serial.println(">> Handling DeltaUpdate packet");
+                        DeltaUpdatePacket* p = (DeltaUpdatePacket*)buffer;
+                        Device& d = p->device;
+                        Serial.printf(">> Device name: %s\n", d.name);
+                        Serial.printf(">> Device id: %d\n", d.id);
+                        Serial.printf(">> Device value: %d\n", d.value);
+                        Serial.printf(">> Device type: %d\n", d.deviceType);
+                        uint8_t typeIndex = (uint8_t)d.deviceType;
+                        for (uint8_t i = 0; i < deviceCountPerType[typeIndex]; ++i) {
+                            if (deviceMatrix[typeIndex][i].id == d.id) {
+                                deviceMatrix[typeIndex][i] = d;
+                                Serial.println(">> Updated device in matrix.");
+                                break;
+                            }
+                        }
+                    } else {
+                        Serial.println("!! Unknown packet type");
                     }
-                }
 
-                for (int i = 0; i < DEVICE_TYPE_COUNT; ++i) {
-                    selectedDeviceIndex[i] = 0;
+                    Serial.println("--------------------------------------------------");
                 }
-                activeMenuIndex = 0;
-            } else if (type == DeltaUpdate) {
-                DeltaUpdatePacket* p = (DeltaUpdatePacket*)buffer;
-                Device& d = p->device;
-                uint8_t typeIndex = (uint8_t)d.deviceType;
-                for (uint8_t i = 0; i < deviceCountPerType[typeIndex]; ++i) {
-                    if (deviceMatrix[typeIndex][i].id == d.id) {
-                        deviceMatrix[typeIndex][i] = d;
-                        break;
-                    }
-                }
-            }
+                break;
         }
     }
 }
+
+
+
+
+

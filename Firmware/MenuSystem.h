@@ -1,6 +1,4 @@
 #pragma once
-
-#include <Arduino.h>
 #include "Protocol.h"
 
 class MenuSystem {
@@ -9,9 +7,14 @@ public:
     void nextMenu();
     void nextDevice();
     void adjustValue(int delta);
+    Device* currentDevice();
     void update();
-    void displayCurrent();
+
+    void requestRedraw();
+    bool checkRedraw();
 
 private:
-    Device* currentDevice();
+    void displayCurrent();
+
+    bool needsRedraw = true;
 };

@@ -1,24 +1,40 @@
 #pragma once
-#include <RotaryEncoder.h>
-#include "Protocol.h"
 
-class MenuSystem;
+#include <Arduino.h>
+#include <EncButton.h>
+#include "Protocol.h"
+#include "MenuSystem.h"
+
+#define ENCODER_PIN_A 11
+#define ENCODER_PIN_B 12
+#define ENCODER_BTN   10
+#define MODE_BTN      8
+#define OLED_SDA      21
+#define OLED_SCL      34
+
+#define ENCODER_VALUE_DELTA 5
+
+extern Button modeBtn;
 
 class HardwareInterface {
 public:
     HardwareInterface(MenuSystem* ms);
     void begin();
     void update();
-
-private:
-    void handleButton();
-    void handleEncoder();
-    void sendUpdate(uint8_t id, uint8_t value, DeviceType type);
     void sendUpdate();
+    void sendUpdate(uint8_t id, uint8_t value, DeviceType type);
     void readSerial();
 
+private:
+    void handleEncoder();
+    void handleEncoderButton();
+    static void onModeBtnEvent();
+
+    static MenuSystem* staticMenuSystem;
     MenuSystem* menuSystem;
-    long lastPos = 0;
-    unsigned long btnPressTime = 0;
-    bool btnPressed = false;
+
+    EncButton enc = EncButton(ENCODER_PIN_A, ENCODER_PIN_B, ENCODER_BTN);
+
+    bool encoderHeld = false;
 };
+
