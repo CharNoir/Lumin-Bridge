@@ -1,4 +1,5 @@
 ﻿using Gma.System.MouseKeyHook;
+using LuminBridgeFramework.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,13 +13,19 @@ namespace LuminBridgeFramework
     public partial class MainForm : Form
     {
         private List<NotifyIcon> trayIcons = new List<NotifyIcon>();
-        private MonitorManager monitorManager;
+        private static MonitorController monitorController;
+        private static SoundOutputController soundOutputController;
+        private SerialController serialController;
+
+        private SettingsForm settingsForm;
         private IKeyboardMouseEvents _hook;
 
         public MainForm()
         {
             InitializeComponent();
-            monitorManager = new MonitorManager(); // Get all monitors
+            monitorController = new MonitorController();
+            serialController = new SerialController();
+            serialController.OnValueReportReceived += HandleValueReport;
             CreateTrayIcons();
         }
 
@@ -27,7 +34,7 @@ namespace LuminBridgeFramework
             _hook = Hook.GlobalEvents();
             _hook.MouseWheel += Global_MouseWheel;
 
-            foreach (var monitor in monitorManager.Monitors)
+            foreach (var monitor in monitorController.Monitors)
             {
                 var trayIcon = new NotifyIcon
                 {
@@ -40,7 +47,8 @@ namespace LuminBridgeFramework
                 {
                     if (args.Button == MouseButtons.Left)
                     {
-                        MessageBox.Show($"Settings for {monitor.Name}");
+                        ShowSettings();
+                        //MessageBox.Show($"Settings for {monitor.Name}");
                     }
                 };
 
@@ -50,10 +58,22 @@ namespace LuminBridgeFramework
                 trayIcons.Add(trayIcon);
             }
         }
+        private void ShowSettings()
+        {
+            if (settingsForm == null || settingsForm.IsDisposed)
+            {
+                settingsForm = new SettingsForm();
+                settingsForm.LoadSettings(monitorController.Monitors, serialController);
+                //settingsForm.LoadSettings(monitorManager.Monitors, audioManager.Devices);
+            }
+
+            settingsForm.Show();
+            settingsForm.BringToFront();
+        }
 
         private void Global_MouseWheel(object sender, MouseEventArgs e)
         {
-            foreach (var monitor in monitorManager.Monitors)
+            foreach (var monitor in monitorController.Monitors)
             {
                 var iconRect = GetTrayIconRect(monitor.IconHwnd, (uint)monitor.IconId);
                 var pt = Cursor.Position;
@@ -95,6 +115,11 @@ namespace LuminBridgeFramework
 
             Debug.WriteLine($"Monitor {monitor.Name} - Icon ID = {id}");
             Debug.WriteLine($"Monitor {monitor.hmonitor} ");
+        }
+
+        public void HandleValueReport(ValueReportPacket packet)
+        { 
+            monitorController.TryApplyValue(packet);
         }
 
         // Dispose the tray icons properly when the form closes

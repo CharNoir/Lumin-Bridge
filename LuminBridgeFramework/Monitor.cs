@@ -2,6 +2,7 @@
 using System.IO;
 using System.Management;
 using System.Runtime.InteropServices;
+using LuminBridgeFramework.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using static LuminBridgeFramework.Program;
@@ -31,7 +32,7 @@ namespace LuminBridgeFramework
         [JsonProperty("name")]
         public string Name { get; private set; }
         [JsonProperty("friendlyName")]
-        public string FriendlyName { get; private set; }
+        public string FriendlyName { get; set; }
         public IntPtr IconHwnd { get; set; }
         public int IconId { get; set; }
 
@@ -118,6 +119,17 @@ namespace LuminBridgeFramework
         public void UpdateMonitorInfo()
         {
             _isHdrEnabled = HdrHelper.GetMonitorHdrStatus(Name);
+        }
+
+        public Device ToProtocolDevice()
+        {
+            return new Device
+            {
+                name = FriendlyName.Length > 32 ? FriendlyName.Substring(0, 32) : FriendlyName,
+                id = (byte)IconId,
+                value = (byte)MathHelper.Clamp(GetBrightness(), 0, 255),
+                deviceType = DeviceType.Brightness
+            };
         }
 
         // ───────────────────────────────────────────────────────────────

@@ -1,11 +1,14 @@
-﻿using System;
+﻿using LuminBridgeFramework.Protocol;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using static LuminBridgeFramework.MainForm;
 
 namespace LuminBridgeFramework
 {
-    public class MonitorManager
+    public class MonitorController : IDeviceController
     {
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumProc lpfnEnum, IntPtr dwData);
@@ -16,7 +19,7 @@ namespace LuminBridgeFramework
 
         public List<Monitor> Monitors { get; private set; }
 
-        public MonitorManager()
+        public MonitorController()
         {
             Monitors = new List<Monitor>();
             EnumAllMonitors();
@@ -52,6 +55,22 @@ namespace LuminBridgeFramework
             Monitors.Add(monitor);
 
             return true; 
+        }
+
+        public bool TryApplyValue(ValueReportPacket packet)
+        {
+            if (packet.deviceType != DeviceType.Brightness)
+                return false;
+
+            var monitor = Monitors.FirstOrDefault(m => m.IconId == packet.id);
+            if (monitor != null)
+            {
+                monitor.SetBrightness(packet.value);
+                Console.WriteLine($"[BrightnessController] Set brightness {packet.value} for {monitor.FriendlyName}");
+                return true;
+            }
+
+            return false;
         }
 
         [StructLayout(LayoutKind.Sequential)]
