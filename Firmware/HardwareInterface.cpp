@@ -10,6 +10,9 @@ Button modeBtn = Button(MODE_BTN);
 MenuSystem* HardwareInterface::staticMenuSystem = nullptr;
 bool handshakeCompleted = false;
 
+unsigned long lastFastTurnTime = 0;
+uint8_t fastTurnCount = 0;
+
 HardwareInterface::HardwareInterface(MenuSystem* ms)
     : menuSystem(ms),
       enc(ENCODER_PIN_A, ENCODER_PIN_B, ENCODER_BTN) {}
@@ -50,8 +53,19 @@ void HardwareInterface::update() {
 }
 
 void HardwareInterface::handleEncoder() {
-    if (enc.turnH()){
-        menuSystem->nextDevice();
+    if (enc.turnH()) {
+        if (millis() - lastFastTurnTime < ENCODER_PRESSED_TIMEOUT) {
+            fastTurnCount++;
+        } else {
+            fastTurnCount = 1;
+        }
+
+        lastFastTurnTime = millis();
+
+        if (fastTurnCount >= ENCODER_PRESSED_TURNS) { 
+            menuSystem->nextDevice();
+            fastTurnCount = 0;
+        }
     }
     else if (enc.turn()) {
         int delta = enc.dir() > 0 ? ENCODER_VALUE_DELTA : -ENCODER_VALUE_DELTA;
@@ -92,7 +106,7 @@ void HardwareInterface::sendUpdate() {
 
 void HardwareInterface::readSerial() {
     static enum { WAIT_FOR_HEADER, WAIT_FOR_LENGTH, WAIT_FOR_PAYLOAD } state = WAIT_FOR_HEADER;
-    static uint8_t buffer[256];
+    static uint8_t buffer[1024];
     static uint8_t expectedLength = 0;
     static uint8_t index = 0;
     static String inputBuffer;

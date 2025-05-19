@@ -12,6 +12,8 @@
 #define OLED_SDA      21
 #define OLED_SCL      34
 
+#define ENCODER_PRESSED_TURNS 2
+#define ENCODER_PRESSED_TIMEOUT 300
 #define ENCODER_VALUE_DELTA 5
 
 extern Button modeBtn;
