@@ -1,6 +1,7 @@
 #include "MenuSystem.h"
 #include "DeviceStorage.h"
 #include "Logging.h"
+#include "Icons.h"
 
 #include <Adafruit_SSD1306.h>
 
@@ -71,18 +72,43 @@ void MenuSystem::displayCurrent() {
     display.clearDisplay();
     Device* dev = currentDevice();
 
+    // Device name
+    display.setTextSize(1);
     display.setCursor(0, 0);
-    display.printf("Menu: %s\n", activeMenuIndex == Volume ? "Volume" : "Brightness");
-
-    display.setCursor(0, 16);
-    display.printf("Device %d/%d:", selectedDeviceIndex[activeMenuIndex] + 1,
-                   deviceCountPerType[activeMenuIndex]);
-
-    display.setCursor(0, 32);
     display.println(dev->name);
 
-    display.setCursor(0, 48);
-    display.printf("Value: %d %%", dev->value);
+    // Device index
+    display.setCursor(0, 12);
+    display.printf("%d/%d", selectedDeviceIndex[activeMenuIndex] + 1,
+                   deviceCountPerType[activeMenuIndex]);
+
+    // Value
+    display.setTextSize(3);
+    int16_t x, y;
+    uint16_t w, h;
+    char valStr[5];
+    snprintf(valStr, sizeof(valStr), "%3d", dev->value);
+    display.getTextBounds(valStr, 0, 0, &x, &y, &w, &h);
+    display.setCursor(128 - w - 2, 64 - h - 2);
+    display.println(valStr);
+
+    // Menu icon
+    const uint8_t* icon = nullptr;
+    switch (activeMenuIndex) {
+        case Volume:
+            icon = speakerIcon32px;
+            break;
+        case Brightness:
+            icon = sunIcon32px;
+            break;
+        default:
+            break;
+    }
+    if (icon != nullptr) {
+        display.drawBitmap(0, 32, icon, 32, 32, SSD1306_WHITE);
+    }
 
     display.display();
 }
+
+
