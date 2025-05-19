@@ -1,5 +1,7 @@
 #include "HardwareInterface.h"
 #include "DeviceStorage.h"
+#include "Logging.h"
+
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
 
@@ -19,7 +21,7 @@ void HardwareInterface::begin() {
 
     Wire.begin(OLED_SDA, OLED_SCL);
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-        Serial.println(F("SSD1306 allocation failed"));
+        LOG_ERROR(F("SSD1306 allocation failed"));
         while (true);
     }
 
@@ -97,13 +99,12 @@ void HardwareInterface::readSerial() {
 
     while (Serial.available()) {
         uint8_t ch = Serial.read();
-        Serial.printf("[SERIAL] Raw byte: 0x%02X\n", ch);
 
         if (isPrintable(ch)) {
             inputBuffer += (char)ch;
             if (inputBuffer.endsWith("HELLO_LUMIN")) {
-                Serial.println("[SERIAL] Received HELLO_LUMIN");
-                Serial.println("<< Sending LUMIN_ACK");
+                LOG_INFO("[SERIAL] Received HELLO_LUMIN");
+                Serial.println("LUMIN_ACK"); // Send acknoledgement
                 handshakeCompleted = true;
                 inputBuffer = "";
             } else if (inputBuffer.length() > 64) {
@@ -116,7 +117,7 @@ void HardwareInterface::readSerial() {
         switch (state) {
             case WAIT_FOR_HEADER:
                 if (ch == 0xAA) {
-                    Serial.println(">> Start of new packet detected (0xAA)");
+                    LOG_INFO(">> Start of new packet detected (0xAA)");
                     state = WAIT_FOR_LENGTH;
                 }
                 break;
@@ -124,9 +125,9 @@ void HardwareInterface::readSerial() {
             case WAIT_FOR_LENGTH:
                 expectedLength = ch;
                 index = 0;
-                Serial.printf(">> Expected packet length: %d\n", expectedLength);
+                LOG_INFO(">> Expected packet length: " + expectedLength);
                 if (expectedLength > sizeof(buffer)) {
-                    Serial.println("!! Packet too large. Resetting.");
+                    LOG_ERROR("!! Packet too large. Resetting.");
                     state = WAIT_FOR_HEADER;
                     break;
                 }
@@ -139,10 +140,9 @@ void HardwareInterface::readSerial() {
                     state = WAIT_FOR_HEADER;
 
                     PacketType type = (PacketType)buffer[0];
-                    Serial.printf(">> PacketType received: 0x%02X\n", type);
 
                     if (type == FullSync) {
-                        Serial.println(">> Handling FullSync packet");
+                        LOG_INFO(">> Handling FullSync packet");
                         FullSyncPacket* p = (FullSyncPacket*)buffer;
                         for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
                             deviceCountPerType[i] = 0;
@@ -153,35 +153,33 @@ void HardwareInterface::readSerial() {
                             if (slot < MAX_DEVICE_PER_MENU) {
                                 deviceMatrix[typeIndex][slot] = d;
                                 deviceCountPerType[typeIndex]++;
-                                Serial.printf(">> Added device: name=%s id=%d value=%d type=%d\n",
-                                              d.name, d.id, d.value, d.deviceType);
+                                //Serial.printf(">> Added device: name=%s id=%d value=%d type=%d\n",
+                                              //d.name, d.id, d.value, d.deviceType);
                             }
                         }
                         for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
                             selectedDeviceIndex[i] = 0;
                         activeMenuIndex = 0;
-                        Serial.println(">> FullSync complete.");
+                        LOG_INFO(">> FullSync complete.");
                     } else if (type == DeltaUpdate) {
-                        Serial.println(">> Handling DeltaUpdate packet");
+                        LOG_INFO(">> Handling DeltaUpdate packet");
                         DeltaUpdatePacket* p = (DeltaUpdatePacket*)buffer;
                         Device& d = p->device;
-                        Serial.printf(">> Device name: %s\n", d.name);
-                        Serial.printf(">> Device id: %d\n", d.id);
-                        Serial.printf(">> Device value: %d\n", d.value);
-                        Serial.printf(">> Device type: %d\n", d.deviceType);
+                        LOG_INFO(">> Device name: " + d.name);
+                        LOG_INFO(">> Device id: " + d.id);
+                        LOG_INFO(">> Device value: " + d.value);
+                        LOG_INFO(">> Device type: " + d.deviceType);
                         uint8_t typeIndex = (uint8_t)d.deviceType;
                         for (uint8_t i = 0; i < deviceCountPerType[typeIndex]; ++i) {
                             if (deviceMatrix[typeIndex][i].id == d.id) {
                                 deviceMatrix[typeIndex][i] = d;
-                                Serial.println(">> Updated device in matrix.");
+                                LOG_INFO(">> Updated device in matrix.");
                                 break;
                             }
                         }
                     } else {
-                        Serial.println("!! Unknown packet type");
+                        LOG_ERROR("!! Unknown packet type");
                     }
-
-                    Serial.println("--------------------------------------------------");
                 }
                 break;
         }
