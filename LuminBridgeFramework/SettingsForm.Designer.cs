@@ -34,6 +34,7 @@
             this.txtAlias = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.btnSaveAlias = new System.Windows.Forms.Button();
+            this.chkIsVisible = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // btnConnect
@@ -94,17 +95,29 @@
             this.btnSaveAlias.UseVisualStyleBackColor = true;
             this.btnSaveAlias.Click += new System.EventHandler(this.btnSaveAlias_Click);
             // 
+            // chkIsVisible
+            // 
+            this.chkIsVisible.AutoSize = true;
+            this.chkIsVisible.Location = new System.Drawing.Point(180, 104);
+            this.chkIsVisible.Name = "chkIsVisible";
+            this.chkIsVisible.Size = new System.Drawing.Size(107, 17);
+            this.chkIsVisible.TabIndex = 6;
+            this.chkIsVisible.Text = "Show On Display";
+            this.chkIsVisible.UseVisualStyleBackColor = true;
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(364, 120);
+            this.ClientSize = new System.Drawing.Size(364, 127);
+            this.Controls.Add(this.chkIsVisible);
             this.Controls.Add(this.btnSaveAlias);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.txtAlias);
             this.Controls.Add(this.cmbDevices);
             this.Controls.Add(this.chkAutostart);
             this.Controls.Add(this.btnConnect);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Name = "SettingsForm";
             this.Text = "SettingsForm";
             this.ResumeLayout(false);
@@ -120,5 +133,6 @@
         private System.Windows.Forms.TextBox txtAlias;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button btnSaveAlias;
+        private System.Windows.Forms.CheckBox chkIsVisible;
     }
 }

@@ -13,6 +13,12 @@ namespace LuminBridgeFramework.Protocol
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct DeltaUpdatePacket {
+        public PacketType packetType;
+        public Device device;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct FullSyncPacket
     {
         public PacketType packetType;

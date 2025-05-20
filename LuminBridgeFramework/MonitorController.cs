@@ -18,7 +18,7 @@ namespace LuminBridgeFramework
         public delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT lprcClip, IntPtr dwData);
 
         public List<Monitor> Monitors { get; private set; }
-
+        public List<BaseDevice> GetDevices() => Monitors.Cast<BaseDevice>().ToList();
         public MonitorController()
         {
             Monitors = new List<Monitor>();

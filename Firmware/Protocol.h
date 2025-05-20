@@ -6,6 +6,7 @@
 #define DEVICE_TYPE_COUNT 2
 
 enum PacketType : uint8_t {
+    ResetDeviceMatrix = 0x00,
     FullSync    = 0x01,
     DeltaUpdate = 0x02,
     ValueReport = 0x10

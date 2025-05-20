@@ -10,7 +10,7 @@ using static LuminBridgeFramework.Program;
 namespace LuminBridgeFramework
 {
     [JsonObject(MemberSerialization.OptIn)]
-    public class Monitor
+    public class Monitor : BaseDevice
     {
         // ───────────────────────────────────────────────────────────────
         // 🔷 Fields
@@ -31,8 +31,6 @@ namespace LuminBridgeFramework
         public IntPtr hmonitor { get; set; }
         [JsonProperty("name")]
         public string Name { get; private set; }
-        [JsonProperty("friendlyName")]
-        public string FriendlyName { get; set; }
         public IntPtr IconHwnd { get; set; }
         public int IconId { get; set; }
 
@@ -101,7 +99,7 @@ namespace LuminBridgeFramework
         /// <param name="desiredBrightness">Desired brightness percentage (0–100).</param>
         public void SetBrightness(int desiredBrightness)
         {
-            desiredBrightness = Clamp(desiredBrightness, _minBrightness, _maxBrightness);
+            desiredBrightness = MathHelper.Clamp(desiredBrightness, _minBrightness, _maxBrightness);
 
             //UpdateMonitorInfo();
 
@@ -121,11 +119,11 @@ namespace LuminBridgeFramework
             _isHdrEnabled = HdrHelper.GetMonitorHdrStatus(Name);
         }
 
-        public Device ToProtocolDevice()
+        public override Device ToProtocolDevice()
         {
             return new Device
             {
-                name = FriendlyName.Length > 32 ? FriendlyName.Substring(0, 32) : FriendlyName,
+                name = SerializationHelper.AsciiStringToFixedLengthString(FriendlyName, 16),
                 id = (byte)IconId,
                 value = (byte)MathHelper.Clamp(GetBrightness(), 0, 255),
                 deviceType = DeviceType.Brightness
@@ -165,6 +163,8 @@ namespace LuminBridgeFramework
         /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
         private void AdjustHdrBrightness(int desiredBrightness)
         {
+            desiredBrightness = MathHelper.Clamp(desiredBrightness, 5, _maxBrightness);
+
             _sdrToHdrWhiteLevel = desiredBrightness;
             if (IconHwnd == IntPtr.Zero)
             {
@@ -178,20 +178,6 @@ namespace LuminBridgeFramework
             );
 
             changeBrightness(hmonitor, PercentToMagic(desiredBrightness));
-        }
-
-        /// <summary>
-        /// Clamps a value between a given minimum and maximum.
-        /// </summary>
-        /// <param name="value">Input value.</param>
-        /// <param name="min">Minimum limit.</param>
-        /// <param name="max">Maximum limit.</param>
-        /// <returns>Clamped value.</returns>
-        private static int Clamp(int value, int min, int max)
-        {
-            if (value < min) return min;
-            if (value > max) return max;
-            return value;
         }
 
         /// <summary>
@@ -271,7 +257,7 @@ namespace LuminBridgeFramework
         // 🔷 Config Persistence
         // ───────────────────────────────────────────────────────────────
 
-        public void SaveConfig()
+        public override void SaveConfig()
         {
             if (!Directory.Exists(ConfigDirectory))
                 Directory.CreateDirectory(ConfigDirectory);

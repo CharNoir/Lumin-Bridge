@@ -88,8 +88,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BaseDevice.cs" />
     <Compile Include="HdrHelper.cs" />
     <Compile Include="HdrMonitorInfo.cs" />
+    <Compile Include="IDevice.cs" />
     <Compile Include="IDeviceController.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
@@ -107,6 +109,7 @@
     <Compile Include="Protocol\ProtocolHelper.cs" />
     <Compile Include="Protocol\ProtocolStructs.cs" />
     <Compile Include="SerialController.cs" />
+    <Compile Include="SerializationHelper.cs" />
     <Compile Include="SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -114,6 +117,7 @@
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="SoundOutputController.cs" />
+    <Compile Include="SoundOutputDevice.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>

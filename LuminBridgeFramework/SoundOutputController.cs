@@ -3,6 +3,7 @@ using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,16 +12,19 @@ namespace LuminBridgeFramework
     public class SoundOutputController : IDeviceController
     {
         private readonly MMDeviceEnumerator _deviceEnumerator;
-        private readonly List<MMDevice> _outputDevices;
-
+        private readonly List<SoundOutputDevice> _outputDevices;
+        public List<BaseDevice> GetDevices() => _outputDevices.Cast<BaseDevice>().ToList();
         public SoundOutputController()
         {
             _deviceEnumerator = new MMDeviceEnumerator();
-            _outputDevices = new List<MMDevice>();
+            _outputDevices = new List<SoundOutputDevice>();
 
+            int index = 0;
             foreach (var device in _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
             {
-                _outputDevices.Add(device);
+                var soundDevice = new SoundOutputDevice(device) { IconId = index++ };
+                soundDevice.LoadConfig();
+                _outputDevices.Add(soundDevice);
             }
         }
 
@@ -42,8 +46,9 @@ namespace LuminBridgeFramework
         /// </summary>
         public float? GetVolume(string deviceName)
         {
-            var device = _outputDevices.Find(d => d.FriendlyName == deviceName);
-            return device?.AudioEndpointVolume.MasterVolumeLevelScalar; // 0.0 to 1.0
+            //var device = _outputDevices.Find(d => d.FriendlyName == deviceName);
+            //return device?.AudioEndpointVolume.MasterVolumeLevelScalar; // 0.0 to 1.0
+            return _outputDevices.Find(d => d.FriendlyName == deviceName)?.GetVolume();
         }
 
         /// <summary>
@@ -52,13 +57,10 @@ namespace LuminBridgeFramework
         public bool SetVolume(string deviceName, float volumeLevel)
         {
             var device = _outputDevices.Find(d => d.FriendlyName == deviceName);
-            if (device != null)
-            {
-                volumeLevel = Math.Max(0.0f, Math.Min(1.0f, volumeLevel));
-                device.AudioEndpointVolume.MasterVolumeLevelScalar = volumeLevel;
-                return true;
-            }
-            return false;
+            if (device == null) return false;
+
+            device.SetVolume(volumeLevel);
+            return true;
         }
 
         /// <summary>
@@ -72,7 +74,16 @@ namespace LuminBridgeFramework
 
         public bool TryApplyValue(ValueReportPacket packet)
         {
-            throw new NotImplementedException();
+            if (packet.deviceType != DeviceType.Volume)
+                return false;
+
+            var device = _outputDevices.FirstOrDefault(d => d.IconId == packet.id);
+
+            if (device == null) return false;
+
+            device.SetVolume(MathHelper.Clamp(packet.value, 0, 100) / 100.0f);
+            Console.WriteLine($"[VolumeController] Set volume {packet.value} for {device.FriendlyName}");
+            return true;
         }
     }
 }

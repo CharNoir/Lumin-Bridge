@@ -62,38 +62,56 @@ namespace LuminBridgeFramework
             }
         }
 
-        public void SendFullSyncPacket(List<Monitor> monitors)
+        public void SendFullSyncPacket(List<BaseDevice> devicesList)
         {
-            var devices = monitors.Select(m => m.ToProtocolDevice()).ToArray();
-
-            var packet = new FullSyncPacket
-            {
-                packetType = PacketType.FullSync,
-                count = (byte)devices.Length,
-                devices = devices
-            };
-
-            var bytes = ProtocolHelper.SerializeFullSyncPacket(packet);
-
             try
             {
-                if (_serialPort != null && _serialPort.IsOpen)
+                if (_serialPort == null || !_serialPort.IsOpen)
                 {
+                    RaiseError("[Sync] Serial port not open.");
+                    return;
+                }
+
+                var resetPacket = new byte[]
+                {
+                    0xAA,
+                    0x01,
+                    (byte)PacketType.ResetDeviceMatrix
+                };
+
+                _serialPort.Write(resetPacket, 0, resetPacket.Length);
+                Console.WriteLine("[Sync] Sent ResetDeviceMatrix command");
+                Thread.Sleep(10);
+
+                foreach (var device in devicesList)
+                {
+                    if (!device.IsVisible) continue;
+                    
+                    var protocolDevice = device.ToProtocolDevice();
+                    var deltaPacket = new DeltaUpdatePacket
+                    {
+                        packetType = PacketType.DeltaUpdate,
+                        device = protocolDevice
+                    };
+
+                    var bytes = ProtocolHelper.SerializeDeltaUpdatePacket(deltaPacket);
+
                     _serialPort.Write(new byte[] { 0xAA }, 0, 1);
                     _serialPort.Write(new byte[] { (byte)bytes.Length }, 0, 1);
                     _serialPort.Write(bytes, 0, bytes.Length);
-                    Console.WriteLine($"[FullSync] Sent {devices.Length} devices, total size: {bytes.Length} bytes");
+
+                    Console.WriteLine($"  - Sent: {protocolDevice.deviceType} | ID: {protocolDevice.id} | Name: {protocolDevice.name} | Value: {protocolDevice.value}");
+                    Thread.Sleep(10);
                 }
-                else
-                {
-                    RaiseError("[FullSync] Serial port not open.");
-                }
+
+                Console.WriteLine($"[Sync] Completed sync of {devicesList.Count} devices");
             }
             catch (Exception ex)
             {
-                RaiseError($"[FullSync] Failed to send: {ex.Message}");
+                RaiseError($"[Sync] Failed: {ex.Message}");
             }
         }
+
 
 
         private void SerialDataReceived(object sender, SerialDataReceivedEventArgs e)

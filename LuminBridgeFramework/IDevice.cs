@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 
 namespace LuminBridgeFramework
 {
-    public interface IDeviceController
+    public interface IDevice
     {
-        bool TryApplyValue(ValueReportPacket packet);
-        List<BaseDevice> GetDevices();
+        string FriendlyName { get; set; }
+        int IconId { get; set; }
+
+        Device ToProtocolDevice();
+        void SaveConfig();
     }
 }

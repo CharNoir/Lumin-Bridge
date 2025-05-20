@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -13,8 +14,10 @@ namespace LuminBridgeFramework
     public partial class MainForm : Form
     {
         private List<NotifyIcon> trayIcons = new List<NotifyIcon>();
-        private static MonitorController monitorController;
-        private static SoundOutputController soundOutputController;
+        private MonitorController monitorController;
+        private SoundOutputController soundOutputController;
+        private List<IDeviceController> deviceControllers;
+
         private SerialController serialController;
 
         private SettingsForm settingsForm;
@@ -24,6 +27,12 @@ namespace LuminBridgeFramework
         {
             InitializeComponent();
             monitorController = new MonitorController();
+            soundOutputController = new SoundOutputController();
+
+            deviceControllers = new List<IDeviceController>();
+            deviceControllers.Add(monitorController);
+            deviceControllers.Add(soundOutputController);
+
             serialController = new SerialController();
             serialController.OnValueReportReceived += HandleValueReport;
             CreateTrayIcons();
@@ -63,7 +72,10 @@ namespace LuminBridgeFramework
             if (settingsForm == null || settingsForm.IsDisposed)
             {
                 settingsForm = new SettingsForm();
-                settingsForm.LoadSettings(monitorController.Monitors, serialController);
+                List<BaseDevice> devices = deviceControllers
+                        .SelectMany(dc => dc.GetDevices())
+                        .ToList(); 
+                settingsForm.LoadSettings(devices, serialController);
                 //settingsForm.LoadSettings(monitorManager.Monitors, audioManager.Devices);
             }
 
@@ -110,7 +122,7 @@ namespace LuminBridgeFramework
             NativeWindow nativeWindow = (NativeWindow)windowField.GetValue(trayIcon);
             IntPtr hwnd = nativeWindow?.Handle ?? IntPtr.Zero;
 
-            monitor.IconId = id;
+            monitor.IconId = id - 1;
             monitor.IconHwnd = hwnd;
 
             Debug.WriteLine($"Monitor {monitor.Name} - Icon ID = {id}");
@@ -118,7 +130,11 @@ namespace LuminBridgeFramework
         }
 
         public void HandleValueReport(ValueReportPacket packet)
-        { 
+        {
+            foreach (IDeviceController controller in deviceControllers)
+            {
+                controller.TryApplyValue(packet);
+            }
             monitorController.TryApplyValue(packet);
         }
 

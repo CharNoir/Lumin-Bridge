@@ -25,7 +25,5 @@ namespace LuminBridgeFramework
 
             Application.Run();
         }
-    }
-
-       
+    }    
 }

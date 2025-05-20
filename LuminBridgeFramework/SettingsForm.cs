@@ -13,7 +13,7 @@ namespace LuminBridgeFramework
 {
     public partial class SettingsForm : Form
     {
-        private List<Monitor> monitors;
+        private List<BaseDevice> devices;
         private SerialController serialController;
         public SettingsForm()
         {
@@ -21,14 +21,18 @@ namespace LuminBridgeFramework
             //chkAutostart.Checked = AutostartHelper.IsEnabled();
         }
 
-        public void LoadSettings(List<Monitor> monitorList, SerialController serialController)
+        public void LoadSettings(List<BaseDevice> deviceList, SerialController serialController)
         {
             this.serialController = serialController;
-            monitors = monitorList;
-            cmbDevices.DataSource = monitors;
+            devices = deviceList;
+
+            cmbDevices.DataSource = null;
+            cmbDevices.DataSource = devices;
             cmbDevices.DisplayMember = "FriendlyName";
-            cmbDevices.ValueMember = "Name";
-            txtAlias.Text = monitors.FirstOrDefault()?.FriendlyName;
+            cmbDevices.ValueMember = "IconId"; // or use a unique string like InstanceId if available
+
+            txtAlias.Text = devices.FirstOrDefault()?.FriendlyName;
+            chkIsVisible.Checked = devices.FirstOrDefault().IsVisible;
 
             ColorBtnConnect();
         }
@@ -38,7 +42,7 @@ namespace LuminBridgeFramework
             if (!serialController.IsConnected)
             {
                 serialController.IdentifyAndConnect();
-                serialController.SendFullSyncPacket(monitors);
+                serialController.SendFullSyncPacket(devices);
             }
             ColorBtnConnect();
         }
@@ -59,10 +63,11 @@ namespace LuminBridgeFramework
 
         private void btnSaveAlias_Click(object sender, EventArgs e)
         {
-            var selected = (Monitor)cmbDevices.SelectedItem;
+            var selected = (BaseDevice)cmbDevices.SelectedItem;
             if (selected != null)
             {
                 selected.FriendlyName = txtAlias.Text;
+                selected.IsVisible = chkIsVisible.Checked;
                 selected.SaveConfig();
             }
             RefreshDevices();
@@ -71,17 +76,18 @@ namespace LuminBridgeFramework
         private void cmbDevices_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (cmbDevices.SelectedItem == null) return;
-            var selected = (Monitor)cmbDevices.SelectedItem;
+            var selected = (BaseDevice)cmbDevices.SelectedItem;
             txtAlias.Text = selected.FriendlyName;
+            chkIsVisible.Checked = selected.IsVisible;
         }
 
         private void RefreshDevices()
         {
             int selectedIndex = cmbDevices.SelectedIndex;
             cmbDevices.DataSource = null;
-            cmbDevices.DataSource = monitors;
+            cmbDevices.DataSource = devices;
             cmbDevices.DisplayMember = "FriendlyName";
-            cmbDevices.ValueMember = "Name";
+            cmbDevices.ValueMember = "IconId";
             cmbDevices.SelectedIndex = selectedIndex;
         }
     }

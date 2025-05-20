@@ -43,6 +43,25 @@ namespace LuminBridgeFramework.Protocol
             return buffer;
         }
 
+        public static byte[] SerializeDeltaUpdatePacket(DeltaUpdatePacket packet)
+        {
+            var size = Marshal.SizeOf<DeltaUpdatePacket>();
+            var buffer = new byte[size];
+
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                Marshal.StructureToPtr(packet, ptr, false);
+                Marshal.Copy(ptr, buffer, 0, size);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+
+            return buffer;
+        }
+
         public static byte[] StructureToBytes<T>(T str) where T : struct
         {
             int size = Marshal.SizeOf<T>();
