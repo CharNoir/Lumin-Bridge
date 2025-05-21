@@ -89,9 +89,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Devices\BaseDevice.cs" />
-    <Compile Include="ComPortWatcher.cs" />
-    <Compile Include="HdrHelper.cs" />
-    <Compile Include="HdrMonitorInfo.cs" />
+    <Compile Include="Controllers\ComPortWatcher.cs" />
+    <Compile Include="Helpers\HdrHelper.cs" />
+    <Compile Include="Devices\HdrMonitorInfo.cs" />
     <Compile Include="Devices\IDevice.cs" />
     <Compile Include="Controllers\IDeviceController.cs" />
     <Compile Include="Forms\MainForm.cs">
@@ -100,7 +100,7 @@
     <Compile Include="Forms\MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="MathHelper.cs" />
+    <Compile Include="Helpers\MathHelper.cs" />
     <Compile Include="Devices\Monitor.cs" />
     <Compile Include="Controllers\MonitorController.cs" />
     <Compile Include="Program.cs" />
@@ -110,7 +110,7 @@
     <Compile Include="Protocol\ProtocolHelper.cs" />
     <Compile Include="Protocol\ProtocolStructs.cs" />
     <Compile Include="Controllers\SerialController.cs" />
-    <Compile Include="SerializationHelper.cs" />
+    <Compile Include="Helpers\SerializationHelper.cs" />
     <Compile Include="Forms\SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>

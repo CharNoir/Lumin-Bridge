@@ -3,9 +3,6 @@ using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LuminBridgeFramework
 {
@@ -27,6 +24,10 @@ namespace LuminBridgeFramework
                 _outputDevices.Add(soundDevice);
             }
         }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Public Methods
+        // ───────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Lists all active output device names.

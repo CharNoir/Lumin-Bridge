@@ -1,10 +1,7 @@
 ﻿using LuminBridgeFramework.Protocol;
-using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
-using System.Linq;
-using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -37,24 +34,9 @@ namespace LuminBridgeFramework
             OnVolumeChangedExternally += VolumeChanged;
         }
 
-        private void VolumeChanged(BaseDevice device)
-        {
-            SendDeltaUpdatePacket(device);
-        }
-
-        private void InitPort(string portName, int baudRate)
-        {
-            _serialPort = new SerialPort(portName, baudRate)
-            {
-                Encoding = Encoding.ASCII,
-                DtrEnable = true,
-                RtsEnable = true,
-                NewLine = "\n"
-            };
-
-            _serialPort.DataReceived += SerialDataReceived;
-        }
-
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Public Methods
+        // ───────────────────────────────────────────────────────────────
         public void Connect()
         {
             try
@@ -70,6 +52,10 @@ namespace LuminBridgeFramework
             }
         }
 
+        /// <summary>
+        /// Attempts to reconnect and perform a full device update if the port is not connected.
+        /// </summary>
+        /// <param name="devices">The list of devices to sync after connecting.</param>
         public void ConnectAndSync(List<BaseDevice> devices)
         {
             if (IsConnected) return;
@@ -87,7 +73,54 @@ namespace LuminBridgeFramework
             }
         }
 
+        /// <summary>
+        /// Scans all COM ports, sends a handshake message, and connects to the one that responds correctly.
+        /// </summary>
+        /// <param name="handshakeMessage">Message sent to identify the device (default: HELLO_LUMIN).</param>
+        /// <param name="expectedResponse">Expected reply from the correct device (default: LUMIN_ACK).</param>
+        /// <param name="baudRate">Baud rate to use during connection.</param>
+        /// <param name="timeoutMs">Timeout for read/write operations in milliseconds.</param>
+        /// <returns>True if successfully connected to the Lumin device; false otherwise.</returns>
+        public bool IdentifyAndConnect(
+            string handshakeMessage = "HELLO_LUMIN",
+            string expectedResponse = "LUMIN_ACK",
+            int baudRate = 115200,
+            int timeoutMs = 100)
+        {
+            Console.WriteLine("Scanning available COM ports for Lumin device...");
 
+            foreach (var portName in SerialPort.GetPortNames())
+            {
+                Console.WriteLine($"Probing {portName}...");
+
+                if (TryProbePort(portName, handshakeMessage, expectedResponse, baudRate, timeoutMs))
+                {
+                    Console.WriteLine($"Matched expected response on {portName}. Connecting...");
+
+                    Dispose(); // clean any previous connection
+                    InitPort(portName, baudRate);
+                    Connect();
+
+                    if (IsConnected)
+                    {
+                        Console.WriteLine($"Successfully connected to {portName}");
+                        return true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Failed to open {portName} after successful handshake.");
+                    }
+                }
+            }
+
+            Console.WriteLine("No matching Lumin device found.");
+            return false;
+        }
+
+        /// <summary>
+        /// Sends a DeltaUpdate packet for a single device.
+        /// </summary>
+        /// <param name="device">The device to send.</param>
         public void SendDeltaUpdatePacket(BaseDevice device)
         {
             if (_serialPort == null || !_serialPort.IsOpen)
@@ -125,6 +158,10 @@ namespace LuminBridgeFramework
             }
         }
 
+        /// <summary>
+        /// Sends a full update of all devices including a reset command and individual updates.
+        /// </summary>
+        /// <param name="devicesList">The list of devices to sync.</param>
         public void SendUpdate(List<BaseDevice> devicesList)
         {
             try
@@ -158,6 +195,89 @@ namespace LuminBridgeFramework
             {
                 RaiseError($"[Sync] Failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Disposes the serial port and event handlers.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_serialPort != null)
+            {
+                try
+                {
+                    _serialPort.DataReceived -= SerialDataReceived;
+                    if (_serialPort.IsOpen)
+                    {
+                        _serialPort.Close();
+                    }
+                    _serialPort.Dispose();
+                }
+                catch { }
+                _serialPort = null;
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Private Methods
+        // ───────────────────────────────────────────────────────────────
+        private bool TryProbePort(
+            string portName,
+            string handshakeMessage = "HELLO_LUMIN",
+            string expectedResponse = "LUMIN_ACK",
+            int baudRate = 115200,
+            int timeoutMs = 100)
+        {
+            try
+            {
+                using (var probePort = new SerialPort(portName, baudRate)
+                {
+                    ReadTimeout = timeoutMs,
+                    WriteTimeout = timeoutMs,
+                    Encoding = Encoding.ASCII,
+                    DtrEnable = true,
+                    RtsEnable = true,
+                    NewLine = "\n"
+                })
+                {
+                    probePort.Open();
+                    Console.WriteLine($"Opened {portName}");
+
+                    probePort.DiscardInBuffer();
+                    probePort.DiscardOutBuffer();
+
+                    probePort.WriteLine(handshakeMessage);
+                    Console.WriteLine($"Sent handshake: '{handshakeMessage}'");
+
+                    string response = probePort.ReadLine().Trim();
+                    Console.WriteLine($"Got response: '{response}'");
+
+                    return response == expectedResponse;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed on {portName}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void InitPort(string portName, int baudRate)
+        {
+            _serialPort = new SerialPort(portName, baudRate)
+            {
+                Encoding = Encoding.ASCII,
+                DtrEnable = true,
+                RtsEnable = true,
+                NewLine = "\n"
+            };
+
+            _serialPort.DataReceived += SerialDataReceived;
+        }
+
+        private void VolumeChanged(BaseDevice device)
+        {
+            SendDeltaUpdatePacket(device);
         }
 
         private void SerialDataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -264,109 +384,6 @@ namespace LuminBridgeFramework
         private void RaiseError(string message)
         {
             _syncContext.Post(_ => OnError?.Invoke(this, message), null);
-        }
-
-        /// <summary>
-        /// Scans all COM ports, sends a handshake message, and connects to the one that responds correctly.
-        /// </summary>
-        /// <param name="handshakeMessage">Message sent to identify the device (default: HELLO_LUMIN).</param>
-        /// <param name="expectedResponse">Expected reply from the correct device (default: LUMIN_ACK).</param>
-        /// <param name="baudRate">Baud rate to use during connection.</param>
-        /// <param name="timeoutMs">Timeout for read/write operations in milliseconds.</param>
-        /// <returns>True if successfully connected to the Lumin device; false otherwise.</returns>
-        public bool IdentifyAndConnect(
-            string handshakeMessage = "HELLO_LUMIN",
-            string expectedResponse = "LUMIN_ACK",
-            int baudRate = 115200,
-            int timeoutMs = 100)
-        {
-            Console.WriteLine("Scanning available COM ports for Lumin device...");
-
-            foreach (var portName in SerialPort.GetPortNames())
-            {
-                Console.WriteLine($"Probing {portName}...");
-
-                if (TryProbePort(portName, handshakeMessage, expectedResponse, baudRate, timeoutMs))
-                {
-                    Console.WriteLine($"Matched expected response on {portName}. Connecting...");
-
-                    Dispose(); // clean any previous connection
-                    InitPort(portName, baudRate);
-                    Connect();
-
-                    if (IsConnected)
-                    {
-                        Console.WriteLine($"Successfully connected to {portName}");
-                        return true;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to open {portName} after successful handshake.");
-                    }
-                }
-            }
-
-            Console.WriteLine("No matching Lumin device found.");
-            return false;
-        }
-
-        private bool TryProbePort(
-            string portName,
-            string handshakeMessage = "HELLO_LUMIN",
-            string expectedResponse = "LUMIN_ACK",
-            int baudRate = 115200,
-            int timeoutMs = 100)
-        {
-            try
-            {
-                using (var probePort = new SerialPort(portName, baudRate)
-                {
-                    ReadTimeout = timeoutMs,
-                    WriteTimeout = timeoutMs,
-                    Encoding = Encoding.ASCII,
-                    DtrEnable = true,
-                    RtsEnable = true,
-                    NewLine = "\n"
-                })
-                {
-                    probePort.Open();
-                    Console.WriteLine($"Opened {portName}");
-
-                    probePort.DiscardInBuffer();
-                    probePort.DiscardOutBuffer();
-
-                    probePort.WriteLine(handshakeMessage);
-                    Console.WriteLine($"Sent handshake: '{handshakeMessage}'");
-
-                    string response = probePort.ReadLine().Trim();
-                    Console.WriteLine($"Got response: '{response}'");
-
-                    return response == expectedResponse;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed on {portName}: {ex.Message}");
-                return false;
-            }
-        }
-
-        public void Dispose()
-        {
-            if (_serialPort != null)
-            {
-                try
-                {
-                    _serialPort.DataReceived -= SerialDataReceived;
-                    if (_serialPort.IsOpen)
-                    {
-                        _serialPort.Close();
-                    }
-                    _serialPort.Dispose();
-                }
-                catch { }
-                _serialPort = null;
-            }
         }
     }
 }

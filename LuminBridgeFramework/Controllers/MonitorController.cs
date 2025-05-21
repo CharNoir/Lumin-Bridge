@@ -3,11 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
 using static LuminBridgeFramework.MainForm;
 
 namespace LuminBridgeFramework
 {
+    /// <summary>
+    /// Controller class for enumerating and managing monitors.
+    /// Provides access to monitor brightness control and integration with tray icons.
+    /// </summary>
     public class MonitorController : IDeviceController
     {
         [DllImport("user32.dll", SetLastError = true)]
@@ -25,6 +28,25 @@ namespace LuminBridgeFramework
             EnumAllMonitors();
         }
 
+        public bool TryApplyValue(ValueReportPacket packet)
+        {
+            if (packet.deviceType != DeviceType.Brightness)
+                return false;
+
+            var monitor = Monitors.FirstOrDefault(m => m.IconId == packet.id);
+            if (monitor != null)
+            {
+                monitor.SetBrightness(packet.value);
+                Console.WriteLine($"[BrightnessController] Set brightness {packet.value} for {monitor.FriendlyName}");
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Enumerates all monitors using the WinAPI.
+        /// </summary>
         private void EnumAllMonitors()
         {
             EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, MonitorEnumCallback, IntPtr.Zero);
@@ -57,22 +79,9 @@ namespace LuminBridgeFramework
             return true; 
         }
 
-        public bool TryApplyValue(ValueReportPacket packet)
-        {
-            if (packet.deviceType != DeviceType.Brightness)
-                return false;
-
-            var monitor = Monitors.FirstOrDefault(m => m.IconId == packet.id);
-            if (monitor != null)
-            {
-                monitor.SetBrightness(packet.value);
-                Console.WriteLine($"[BrightnessController] Set brightness {packet.value} for {monitor.FriendlyName}");
-                return true;
-            }
-
-            return false;
-        }
-
+        /// <summary>
+        /// Structure that contains extended monitor information, including its device name.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public struct MONITORINFOEX
         {
@@ -84,6 +93,10 @@ namespace LuminBridgeFramework
             public char[] szDevice;
         }
 
+        /// <summary>
+        /// Represents device mode (DEVMODE) structure used in display-related WinAPI functions.
+        /// (Defined here for potential future use.)
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public struct DEVMODE
         {

@@ -1,14 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace LuminBridgeFramework
 {
+    /// <summary>
+    /// Watches for USB COM port device connection and disconnection events on Windows.
+    /// Intended for use with forms to detect serial device (COM port) plug/unplug.
+    /// </summary>
     public class ComPortWatcher : NativeWindow, IDisposable
     {
         public const int WM_DEVICECHANGE = 0x0219;
