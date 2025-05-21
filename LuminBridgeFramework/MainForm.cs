@@ -24,6 +24,7 @@ namespace LuminBridgeFramework
         private SettingsForm settingsForm;
         private IKeyboardMouseEvents _hook;
 
+        private ComPortWatcher _comWatcher;
         public MainForm()
         {
             InitializeComponent();
@@ -38,7 +39,9 @@ namespace LuminBridgeFramework
             serialController.OnValueReportReceived += HandleValueReport;
             serialController.ConnectAndSync(ListDevices());
             CreateTrayIcons();
-            RegisterForComNotifications();
+            //RegisterForComNotifications();
+
+            _comWatcher = new ComPortWatcher(this);
         }
 
         private void CreateTrayIcons()
@@ -151,13 +154,8 @@ namespace LuminBridgeFramework
                 trayIcon.Visible = false;
                 trayIcon.Dispose();
             }
-
-            if (_deviceNotificationHandle != IntPtr.Zero)
-            {
-                UnregisterDeviceNotification(_deviceNotificationHandle);
-                _deviceNotificationHandle = IntPtr.Zero;
-            }
-
+            
+            _comWatcher.Dispose();
             serialController.Dispose();
 
             base.OnFormClosing(e);
@@ -204,65 +202,18 @@ namespace LuminBridgeFramework
             return rect;
         }
 
-
-
-        private const int WM_DEVICECHANGE = 0x0219;
-        private const int DBT_DEVICEARRIVAL = 0x8000;
-        private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
-        private const int DBT_DEVTYP_DEVICEINTERFACE = 0x00000005;
-        private const int DEVICE_NOTIFY_WINDOW_HANDLE = 0x00000000;
-
-        private static readonly Guid GUID_DEVINTERFACE_COMPORT =
-            new Guid("86E0D1E0-8089-11D0-9CE4-08003E301F73");
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern IntPtr RegisterDeviceNotification(IntPtr hRecipient, IntPtr notificationFilter, int flags);
-
-        [DllImport("user32.dll")]
-        private static extern bool UnregisterDeviceNotification(IntPtr handle);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct DEV_BROADCAST_DEVICEINTERFACE
-        {
-            public int dbcc_size;
-            public int dbcc_devicetype;
-            public int dbcc_reserved;
-            public Guid dbcc_classguid;
-            public short dbcc_name;
-        }
-
-        private IntPtr _deviceNotificationHandle = IntPtr.Zero;
-
-        private void RegisterForComNotifications()
-        {
-            var dbi = new DEV_BROADCAST_DEVICEINTERFACE
-            {
-                dbcc_size = Marshal.SizeOf(typeof(DEV_BROADCAST_DEVICEINTERFACE)),
-                dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE,
-                dbcc_reserved = 0,
-                dbcc_classguid = GUID_DEVINTERFACE_COMPORT
-            };
-
-            IntPtr buffer = Marshal.AllocHGlobal(dbi.dbcc_size);
-            Marshal.StructureToPtr(dbi, buffer, false);
-
-            _deviceNotificationHandle = RegisterDeviceNotification(this.Handle, buffer, DEVICE_NOTIFY_WINDOW_HANDLE);
-
-            Marshal.FreeHGlobal(buffer);
-        }
-
         protected override void WndProc(ref Message m)
         {
-            if (m.Msg == WM_DEVICECHANGE)
+            if (m.Msg == ComPortWatcher.WM_DEVICECHANGE)
             {
                 int wParam = m.WParam.ToInt32();
-                if (wParam == DBT_DEVICEARRIVAL)
+                if (wParam == ComPortWatcher.DBT_DEVICEARRIVAL)
                 {
                     Console.WriteLine("[COM] Device connected.");
                     Thread.Sleep(2000);
                     serialController.ConnectAndSync(ListDevices());
                 }
-                else if (wParam == DBT_DEVICEREMOVECOMPLETE)
+                else if (wParam == ComPortWatcher.DBT_DEVICEREMOVECOMPLETE)
                 {
                     Console.WriteLine("[COM] Device disconnected.");
                 }

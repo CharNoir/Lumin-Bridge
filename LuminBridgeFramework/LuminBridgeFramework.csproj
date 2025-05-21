@@ -89,6 +89,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BaseDevice.cs" />
+    <Compile Include="ComPortWatcher.cs" />
     <Compile Include="HdrHelper.cs" />
     <Compile Include="HdrMonitorInfo.cs" />
     <Compile Include="IDevice.cs" />
