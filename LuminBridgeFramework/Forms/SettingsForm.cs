@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LuminBridgeFramework.Helpers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -33,6 +34,8 @@ namespace LuminBridgeFramework
 
             txtAlias.Text = devices.FirstOrDefault()?.FriendlyName;
             chkIsVisible.Checked = devices.FirstOrDefault().IsVisible;
+
+            chkAutostart.Checked = AutostartHelper.IsEnabled();
 
             ColorBtnConnect();
         }
@@ -88,6 +91,14 @@ namespace LuminBridgeFramework
             cmbDevices.DisplayMember = "FriendlyName";
             cmbDevices.ValueMember = "IconId";
             cmbDevices.SelectedIndex = selectedIndex;
+        }
+
+        private void chkAutostart_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkAutostart.Checked)
+                AutostartHelper.Enable();
+            else
+                AutostartHelper.Disable();
         }
     }
 }

@@ -56,6 +56,7 @@
             this.chkAutostart.TabIndex = 1;
             this.chkAutostart.Text = "Autostart on Windows";
             this.chkAutostart.UseVisualStyleBackColor = true;
+            this.chkAutostart.CheckedChanged += new System.EventHandler(this.chkAutostart_CheckedChanged);
             // 
             // cmbDevices
             // 
