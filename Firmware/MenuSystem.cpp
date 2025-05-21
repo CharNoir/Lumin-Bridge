@@ -14,6 +14,7 @@ void MenuSystem::begin() {
     }
     needsRedraw = true;
 
+    /*
     // --- Mock Data ---
     Device vol1 = { "Realtek Audio", 0, 45, Volume };
     Device vol2 = { "USB DAC",       1, 60, Volume };
@@ -26,6 +27,7 @@ void MenuSystem::begin() {
     deviceMatrix[Brightness][0] = br1;
     deviceMatrix[Brightness][1] = br2;
     deviceCountPerType[Brightness] = 2;
+    */
 }
 
 void MenuSystem::nextMenu() {
@@ -96,10 +98,10 @@ void MenuSystem::displayCurrent() {
     const uint8_t* icon = nullptr;
     switch (activeMenuIndex) {
         case Volume:
-            icon = speakerIcon32px;
+            icon = (dev->value == 0) ? speakerMutedIcon32px : speakerIcon32px;
             break;
         case Brightness:
-            icon = sunIcon32px;
+            icon = (dev->value == 0) ? sunOffIcon32px : sunIcon32px;
             break;
         default:
             break;

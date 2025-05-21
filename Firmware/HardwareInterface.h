@@ -29,14 +29,15 @@ public:
 
 private:
     void handleEncoder();
-    void handleEncoderButton();
     static void onModeBtnEvent();
+
+    void handlePacket(uint8_t* buffer, uint8_t length);
+    void handleFullSync(FullSyncPacket* p);
+    void handleDeltaUpdate(DeltaUpdatePacket* p);
+    void handleResetDeviceMatrix();
 
     static MenuSystem* staticMenuSystem;
     MenuSystem* menuSystem;
 
     EncButton enc = EncButton(ENCODER_PIN_A, ENCODER_PIN_B, ENCODER_BTN);
-
-    bool encoderHeld = false;
 };
-

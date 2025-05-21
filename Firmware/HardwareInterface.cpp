@@ -169,87 +169,106 @@ void HardwareInterface::readSerial() {
                 buffer[index++] = ch;
                 if (index == expectedLength) {
                     state = WAIT_FOR_HEADER;
-
-                    PacketType type = (PacketType)buffer[0];
-
-                    if (type == FullSync) {
-                        LOG_INFO(">> Handling FullSync packet");
-                        FullSyncPacket* p = (FullSyncPacket*)buffer;
-                        for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
-                            deviceCountPerType[i] = 0;
-                        for (int i = 0; i < p->count; ++i) {
-                            Device& d = p->devices[i];
-                            uint8_t typeIndex = (uint8_t)d.deviceType;
-
-                            if (typeIndex >= DEVICE_TYPE_COUNT) {
-                                LOG_ERROR("Skipping device " + i);
-                                continue;
-                            }
-                            
-                            uint8_t slot = deviceCountPerType[typeIndex];
-                            if (slot < MAX_DEVICE_PER_MENU) {
-                                deviceMatrix[typeIndex][slot] = d;
-                                deviceCountPerType[typeIndex]++;
-                                //Serial.printf(">> Added device: name=%s id=%d value=%d type=%d\n",
-                                              //d.name, d.id, d.value, d.deviceType);
-                            }
-                        }
-                        for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
-                            selectedDeviceIndex[i] = 0;
-                        activeMenuIndex = 0;
-                        LOG_INFO(">> FullSync complete.");
-                    } else if (type == DeltaUpdate) {
-                        LOG_INFO(">> Handling DeltaUpdate packet");
-                        DeltaUpdatePacket* p = (DeltaUpdatePacket*)buffer;
-                        Device& d = p->device;
-                        LOG_INFO(">> Device name: " + d.name);
-                        LOG_INFO(">> Device id: " + d.id);
-                        LOG_INFO(">> Device value: " + d.value);
-                        LOG_INFO(">> Device type: " + d.deviceType);
-                        uint8_t typeIndex = (uint8_t)d.deviceType;
-                        bool found = false;
-                        for (uint8_t i = 0; i < deviceCountPerType[typeIndex]; ++i) {
-                            if (deviceMatrix[typeIndex][i].id == d.id) {
-                                deviceMatrix[typeIndex][i] = d;
-                                LOG_INFO(">> Updated device in matrix.");
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        // Insert as new if not found
-                        if (!found && deviceCountPerType[typeIndex] < MAX_DEVICE_PER_MENU) {
-                            deviceMatrix[typeIndex][deviceCountPerType[typeIndex]++] = d;
-                            LOG_INFO(">> Inserted new device into matrix.");
-                        }
-                    } else if (type == ResetDeviceMatrix) {
-                        LOG_INFO(">> Handling ResetDeviceMatrix packet");
-
-                        for (int i = 0; i < DEVICE_TYPE_COUNT; ++i) {
-                            deviceCountPerType[i] = 0;
-                            selectedDeviceIndex[i] = 0;
-
-                            for (int j = 0; j < MAX_DEVICE_PER_MENU; ++j) {
-                                memset(&deviceMatrix[i][j], 0, sizeof(Device));
-                            }
-                        }
-                        activeMenuIndex = 0;
-
-                        memset(prevValues, 0, sizeof(prevValues));
-
-                        LOG_INFO(">> Device matrix reset.");
-                        break;
-                      }
-                      else {
-                        LOG_ERROR("!! Unknown packet type");
-                    }
+                    handlePacket(buffer, expectedLength);
                 }
                 break;
         }
     }
 }
 
+void HardwareInterface::handlePacket(uint8_t* buffer, uint8_t length) {
+    PacketType type = (PacketType)buffer[0];
 
+    switch (type) {
+        case FullSync:
+            handleFullSync((FullSyncPacket*)buffer);
+            break;
 
+        case DeltaUpdate:
+            handleDeltaUpdate((DeltaUpdatePacket*)buffer);
+            break;
 
+        case ResetDeviceMatrix:
+            handleResetDeviceMatrix();
+            break;
 
+        default:
+            LOG_ERROR("!! Unknown packet type: " + String(type));
+            break;
+    }
+}
+
+void HardwareInterface::handleFullSync(FullSyncPacket* p) {
+    LOG_INFO(">> Handling FullSync packet");
+
+    for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
+        deviceCountPerType[i] = 0;
+
+    for (int i = 0; i < p->count; ++i) {
+        Device& d = p->devices[i];
+        uint8_t typeIndex = (uint8_t)d.deviceType;
+
+        if (typeIndex >= DEVICE_TYPE_COUNT) {
+            LOG_ERROR("Skipping device " + String(i));
+            continue;
+        }
+
+        uint8_t slot = deviceCountPerType[typeIndex];
+        if (slot < MAX_DEVICE_PER_MENU) {
+            deviceMatrix[typeIndex][slot] = d;
+            deviceCountPerType[typeIndex]++;
+        }
+    }
+
+    for (int i = 0; i < DEVICE_TYPE_COUNT; ++i)
+        selectedDeviceIndex[i] = 0;
+
+    activeMenuIndex = 0;
+    LOG_INFO(">> FullSync complete.");
+}
+
+void HardwareInterface::handleDeltaUpdate(DeltaUpdatePacket* p) {
+    LOG_INFO(">> Handling DeltaUpdate packet");
+
+    Device& d = p->device;
+    uint8_t typeIndex = (uint8_t)d.deviceType;
+    bool found = false;
+
+    LOG_INFO(">> Device name: " + String(d.name));
+    LOG_INFO(">> Device id: " + String(d.id));
+    LOG_INFO(">> Device value: " + String(d.value));
+    LOG_INFO(">> Device type: " + String(d.deviceType));
+
+    for (uint8_t i = 0; i < deviceCountPerType[typeIndex]; ++i) {
+        if (deviceMatrix[typeIndex][i].id == d.id) {
+            deviceMatrix[typeIndex][i] = d;
+            LOG_INFO(">> Updated device in matrix.");
+            found = true;
+            break;
+        }
+    }
+
+    if (!found && deviceCountPerType[typeIndex] < MAX_DEVICE_PER_MENU) {
+        deviceMatrix[typeIndex][deviceCountPerType[typeIndex]++] = d;
+        LOG_INFO(">> Inserted new device into matrix.");
+    }
+
+    if (staticMenuSystem) staticMenuSystem->requestRedraw();
+}
+
+void HardwareInterface::handleResetDeviceMatrix() {
+    LOG_INFO(">> Handling ResetDeviceMatrix packet");
+
+    for (int i = 0; i < DEVICE_TYPE_COUNT; ++i) {
+        deviceCountPerType[i] = 0;
+        selectedDeviceIndex[i] = 0;
+
+        for (int j = 0; j < MAX_DEVICE_PER_MENU; ++j) {
+            memset(&deviceMatrix[i][j], 0, sizeof(Device));
+        }
+    }
+
+    activeMenuIndex = 0;
+    memset(prevValues, 0, sizeof(prevValues));
+    LOG_INFO(">> Device matrix reset.");
+}

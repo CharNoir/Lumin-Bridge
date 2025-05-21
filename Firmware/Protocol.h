@@ -9,7 +9,7 @@ enum PacketType : uint8_t {
     ResetDeviceMatrix = 0x00,
     FullSync    = 0x01,
     DeltaUpdate = 0x02,
-    ValueReport = 0x10
+    ValueReport = 0x10,
 };
 
 enum DeviceType : uint8_t {
