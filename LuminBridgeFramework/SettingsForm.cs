@@ -42,7 +42,7 @@ namespace LuminBridgeFramework
             if (!serialController.IsConnected)
             {
                 serialController.IdentifyAndConnect();
-                serialController.SendFullSyncPacket(devices);
+                serialController.SendUpdate(devices);
             }
             ColorBtnConnect();
         }

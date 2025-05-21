@@ -1,4 +1,5 @@
 ﻿using LuminBridgeFramework.Protocol;
+using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -18,6 +19,7 @@ namespace LuminBridgeFramework
         public event EventHandler<string> OnDataReceived;
         public event EventHandler<string> OnError;
         public event Action<ValueReportPacket> OnValueReportReceived;
+        public static Action<BaseDevice> OnVolumeChangedExternally { get; set; }
 
         public string ConnectedPortName => _serialPort?.PortName;
         public bool IsConnected => _serialPort != null && _serialPort.IsOpen;
@@ -32,6 +34,12 @@ namespace LuminBridgeFramework
         public SerialController()
         {
             _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
+            OnVolumeChangedExternally += VolumeChanged;
+        }
+
+        private void VolumeChanged(BaseDevice device)
+        {
+            SendDeltaUpdatePacket(device);
         }
 
         private void InitPort(string portName, int baudRate)
@@ -62,7 +70,44 @@ namespace LuminBridgeFramework
             }
         }
 
-        public void SendFullSyncPacket(List<BaseDevice> devicesList)
+        public void SendDeltaUpdatePacket(BaseDevice device)
+        {
+            if (_serialPort == null || !_serialPort.IsOpen)
+            {
+                RaiseError("[Delta] Serial port not open.");
+                return;
+            }
+
+            if (!device.IsVisible)
+            {
+                Console.WriteLine($"[Delta] Skipped invisible device: {device.FriendlyName}");
+                return;
+            }
+
+            var protocolDevice = device.ToProtocolDevice();
+            var deltaPacket = new DeltaUpdatePacket
+            {
+                packetType = PacketType.DeltaUpdate,
+                device = protocolDevice
+            };
+
+            var bytes = ProtocolHelper.SerializeDeltaUpdatePacket(deltaPacket);
+
+            try
+            {
+                _serialPort.Write(new byte[] { 0xAA }, 0, 1);
+                _serialPort.Write(new byte[] { (byte)bytes.Length }, 0, 1);
+                _serialPort.Write(bytes, 0, bytes.Length);
+
+                Console.WriteLine($"[Delta] Sent: {protocolDevice.deviceType} | ID: {protocolDevice.id} | Name: {protocolDevice.name} | Value: {protocolDevice.value}");
+            }
+            catch (Exception ex)
+            {
+                RaiseError($"[Delta] Failed to send packet: {ex.Message}");
+            }
+        }
+
+        public void SendUpdate(List<BaseDevice> devicesList)
         {
             try
             {
@@ -85,22 +130,7 @@ namespace LuminBridgeFramework
 
                 foreach (var device in devicesList)
                 {
-                    if (!device.IsVisible) continue;
-                    
-                    var protocolDevice = device.ToProtocolDevice();
-                    var deltaPacket = new DeltaUpdatePacket
-                    {
-                        packetType = PacketType.DeltaUpdate,
-                        device = protocolDevice
-                    };
-
-                    var bytes = ProtocolHelper.SerializeDeltaUpdatePacket(deltaPacket);
-
-                    _serialPort.Write(new byte[] { 0xAA }, 0, 1);
-                    _serialPort.Write(new byte[] { (byte)bytes.Length }, 0, 1);
-                    _serialPort.Write(bytes, 0, bytes.Length);
-
-                    Console.WriteLine($"  - Sent: {protocolDevice.deviceType} | ID: {protocolDevice.id} | Name: {protocolDevice.name} | Value: {protocolDevice.value}");
+                    SendDeltaUpdatePacket(device);
                     Thread.Sleep(10);
                 }
 
@@ -111,8 +141,6 @@ namespace LuminBridgeFramework
                 RaiseError($"[Sync] Failed: {ex.Message}");
             }
         }
-
-
 
         private void SerialDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
@@ -284,7 +312,6 @@ namespace LuminBridgeFramework
             Console.WriteLine("Lumin device not found on any available COM port.");
             return false;
         }
-
 
         public void Dispose()
         {

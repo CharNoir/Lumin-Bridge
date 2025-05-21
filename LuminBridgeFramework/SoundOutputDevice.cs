@@ -17,28 +17,49 @@ namespace LuminBridgeFramework
         {
             Device = device;
             FriendlyName = device.FriendlyName;
+            Device.AudioEndpointVolume.OnVolumeNotification += VolumeChanged;
         }
 
         public SoundOutputDevice(){}
 
         public int GetVolume()
         {
-            return (int)(Device.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+            return (int)Math.Round(Device.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
         }
 
         public void SetVolume(float level)
         {
             level = MathHelper.Clamp(level, 0.0f, 1.0f);
+            float currentValue = Device.AudioEndpointVolume.MasterVolumeLevelScalar;
+            if (level == 0)
+            {
+                Device.AudioEndpointVolume.Mute = true;
+                return;
+            }
+            else if (Device.AudioEndpointVolume.Mute)
+            {
+                Device.AudioEndpointVolume.Mute = false;
+            }
             Device.AudioEndpointVolume.MasterVolumeLevelScalar = level;
+        }
+
+        private void VolumeChanged(AudioVolumeNotificationData data)
+        {
+            float newVolume = data.MasterVolume;
+            if (data.Muted) { newVolume = 0; }
+            SerialController.OnVolumeChangedExternally(this);
         }
 
         public override Device ToProtocolDevice()
         {
+            byte volume = (byte)MathHelper.Clamp(GetVolume(), 0, 100);
+            if (Device.AudioEndpointVolume.Mute) { volume = 0; }
+
             return new Device
             {
                 name = SerializationHelper.AsciiStringToFixedLengthString(FriendlyName, 16),
                 id = (byte)IconId,
-                value = (byte)MathHelper.Clamp(GetVolume(), 0, 100),
+                value = volume,
                 deviceType = DeviceType.Volume
             };
         }
