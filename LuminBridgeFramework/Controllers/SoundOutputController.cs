@@ -11,6 +11,7 @@ namespace LuminBridgeFramework
         private readonly MMDeviceEnumerator _deviceEnumerator;
         private readonly List<SoundOutputDevice> _outputDevices;
         public List<BaseDevice> GetDevices() => _outputDevices.Cast<BaseDevice>().ToList();
+        public event Action<SoundOutputDevice> VolumeChanged;
         public SoundOutputController()
         {
             _deviceEnumerator = new MMDeviceEnumerator();
@@ -21,6 +22,7 @@ namespace LuminBridgeFramework
             {
                 var soundDevice = new SoundOutputDevice(device) { IconId = index++ };
                 soundDevice.LoadConfig();
+                soundDevice.VolumeChangedExternally += OnDeviceVolumeChanged;
                 _outputDevices.Add(soundDevice);
             }
         }
@@ -85,6 +87,14 @@ namespace LuminBridgeFramework
             device.SetVolume(MathHelper.Clamp(packet.value, 0, 100) / 100.0f);
             Console.WriteLine($"[VolumeController] Set volume {packet.value} for {device.FriendlyName}");
             return true;
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔷 Private Methods
+        // ───────────────────────────────────────────────────────────────
+        private void OnDeviceVolumeChanged(SoundOutputDevice device)
+        {
+            VolumeChanged?.Invoke(device);
         }
     }
 }

@@ -30,6 +30,7 @@ namespace LuminBridgeFramework
             InitializeComponent();
             monitorController = new MonitorController();
             soundOutputController = new SoundOutputController();
+            soundOutputController.VolumeChanged += OnSoundDeviceVolumeChanged;
 
             deviceControllers = new List<IDeviceController>();
             deviceControllers.Add(monitorController);
@@ -42,6 +43,11 @@ namespace LuminBridgeFramework
             //RegisterForComNotifications();
 
             _comWatcher = new ComPortWatcher(this);
+        }
+
+        private void OnSoundDeviceVolumeChanged(SoundOutputDevice device)
+        {
+            serialController.SendDeltaUpdatePacket(device);
         }
 
         private void CreateTrayIcons()

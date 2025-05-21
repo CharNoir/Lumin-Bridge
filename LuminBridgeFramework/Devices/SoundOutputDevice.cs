@@ -12,6 +12,7 @@ namespace LuminBridgeFramework
     public class SoundOutputDevice : BaseDevice
     {
         public MMDevice Device { get; private set; }
+        public event Action<SoundOutputDevice> VolumeChangedExternally;
 
         public SoundOutputDevice(MMDevice device)
         {
@@ -45,9 +46,10 @@ namespace LuminBridgeFramework
 
         private void VolumeChanged(AudioVolumeNotificationData data)
         {
-            float newVolume = data.MasterVolume;
-            if (data.Muted) { newVolume = 0; }
-            SerialController.OnVolumeChangedExternally(this);
+            if (!data.EventContext.Equals(Guid.Empty))
+            {
+                VolumeChangedExternally?.Invoke(this);
+            }
         }
 
         public override Device ToProtocolDevice()

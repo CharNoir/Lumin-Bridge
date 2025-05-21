@@ -16,7 +16,6 @@ namespace LuminBridgeFramework
         public event EventHandler<string> OnDataReceived;
         public event EventHandler<string> OnError;
         public event Action<ValueReportPacket> OnValueReportReceived;
-        public static Action<BaseDevice> OnVolumeChangedExternally { get; set; }
 
         public string ConnectedPortName => _serialPort?.PortName;
         public bool IsConnected => _serialPort != null && _serialPort.IsOpen;
@@ -31,7 +30,6 @@ namespace LuminBridgeFramework
         public SerialController()
         {
             _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
-            OnVolumeChangedExternally += VolumeChanged;
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -273,11 +271,6 @@ namespace LuminBridgeFramework
             };
 
             _serialPort.DataReceived += SerialDataReceived;
-        }
-
-        private void VolumeChanged(BaseDevice device)
-        {
-            SendDeltaUpdatePacket(device);
         }
 
         private void SerialDataReceived(object sender, SerialDataReceivedEventArgs e)
