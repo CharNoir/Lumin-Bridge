@@ -32,7 +32,6 @@ namespace LuminBridgeFramework
         [JsonProperty("name")]
         public string Name { get; private set; }
         public IntPtr IconHwnd { get; set; }
-        public int IconId { get; set; }
 
         // ───────────────────────────────────────────────────────────────
         // 🔷 Constructors

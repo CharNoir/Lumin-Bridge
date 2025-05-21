@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace LuminBridgeFramework
@@ -38,11 +39,13 @@ namespace LuminBridgeFramework
 
             serialController = new SerialController();
             serialController.OnValueReportReceived += HandleValueReport;
-            serialController.ConnectAndSync(ListDevices());
+            //serialController.ConnectAndSync(ListDevices());
             CreateTrayIcons();
             //RegisterForComNotifications();
 
             _comWatcher = new ComPortWatcher(this);
+
+            AsyncConnectAndSync();
         }
 
         private void OnSoundDeviceVolumeChanged(SoundOutputDevice device)
@@ -152,6 +155,15 @@ namespace LuminBridgeFramework
             monitorController.TryApplyValue(packet);
         }
 
+        private void AsyncConnectAndSync()
+        {
+            Task.Run(() =>
+            {
+                Thread.Sleep(2000);
+                serialController.ConnectAndSync(ListDevices());
+            });
+        }
+
         // Dispose the tray icons properly when the form closes
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -216,8 +228,7 @@ namespace LuminBridgeFramework
                 if (wParam == ComPortWatcher.DBT_DEVICEARRIVAL)
                 {
                     Console.WriteLine("[COM] Device connected.");
-                    Thread.Sleep(2000);
-                    serialController.ConnectAndSync(ListDevices());
+                    AsyncConnectAndSync();
                 }
                 else if (wParam == ComPortWatcher.DBT_DEVICEREMOVECOMPLETE)
                 {
