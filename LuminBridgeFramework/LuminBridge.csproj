@@ -90,6 +90,7 @@
   <ItemGroup>
     <Compile Include="Devices\BaseDevice.cs" />
     <Compile Include="Controllers\ComPortWatcher.cs" />
+    <Compile Include="Helpers\AutostartHelper.cs" />
     <Compile Include="Helpers\HdrHelper.cs" />
     <Compile Include="Devices\HdrMonitorInfo.cs" />
     <Compile Include="Devices\IDevice.cs" />

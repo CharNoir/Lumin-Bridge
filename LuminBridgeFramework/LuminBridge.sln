@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuminBridgeFramework", "LuminBridgeFramework.csproj", "{B3D180C8-9314-4560-AB9E-460A98E6195D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuminBridge", "LuminBridge.csproj", "{B3D180C8-9314-4560-AB9E-460A98E6195D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HdrChecker", "..\HdrChecker\HdrChecker.csproj", "{573300FA-A7F7-4E6D-AFC0-4B1C63CC6D9E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HdrChecker", "..\HdrChecker\HdrChecker.csproj", "{573300FA-A7F7-4E6D-AFC0-4B1C63CC6D9E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
