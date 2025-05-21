@@ -35,6 +35,7 @@ namespace LuminBridgeFramework
 
             serialController = new SerialController();
             serialController.OnValueReportReceived += HandleValueReport;
+            serialController.ConnectAndSync(ListDevices());
             CreateTrayIcons();
         }
 
@@ -72,15 +73,17 @@ namespace LuminBridgeFramework
             if (settingsForm == null || settingsForm.IsDisposed)
             {
                 settingsForm = new SettingsForm();
-                List<BaseDevice> devices = deviceControllers
-                        .SelectMany(dc => dc.GetDevices())
-                        .ToList(); 
-                settingsForm.LoadSettings(devices, serialController);
+                settingsForm.LoadSettings(ListDevices(), serialController);
                 //settingsForm.LoadSettings(monitorManager.Monitors, audioManager.Devices);
             }
 
             settingsForm.Show();
             settingsForm.BringToFront();
+        }
+
+        private List<BaseDevice> ListDevices()
+        {
+            return deviceControllers.SelectMany(dc => dc.GetDevices()).ToList();
         }
 
         private void Global_MouseWheel(object sender, MouseEventArgs e)
@@ -146,6 +149,8 @@ namespace LuminBridgeFramework
                 trayIcon.Visible = false;
                 trayIcon.Dispose();
             }
+
+            serialController.Dispose();
 
             base.OnFormClosing(e);
         }
