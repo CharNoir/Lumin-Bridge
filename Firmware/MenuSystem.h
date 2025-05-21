@@ -6,7 +6,7 @@ public:
     void begin();
     void nextMenu();
     void nextDevice();
-    void adjustValue(int delta);
+    bool adjustValue(int delta);
     Device* currentDevice();
     void update();
 

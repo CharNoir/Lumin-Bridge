@@ -41,11 +41,15 @@ void MenuSystem::nextDevice() {
     requestRedraw();
 }
 
-void MenuSystem::adjustValue(int delta) {
+bool MenuSystem::adjustValue(int delta) {
     Device& dev = *currentDevice();
     uint8_t oldValue = dev.value;
     dev.value = constrain(dev.value + delta, 0, 100);
-    if (dev.value != oldValue) requestRedraw();
+    if (dev.value != oldValue) {
+      requestRedraw();
+      return true;
+    }
+    return false;
 }
 
 Device* MenuSystem::currentDevice() {

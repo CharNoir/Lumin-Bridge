@@ -70,8 +70,8 @@ void HardwareInterface::handleEncoder() {
     }
     else if (enc.turn()) {
         int delta = enc.dir() > 0 ? ENCODER_VALUE_DELTA : -ENCODER_VALUE_DELTA;
-        menuSystem->adjustValue(delta);
-        sendUpdate();
+        if (menuSystem->adjustValue(delta)) 
+          sendUpdate();
     }
     else if (enc.click()) {  // short press on encoder
         Device* dev = menuSystem->currentDevice();
