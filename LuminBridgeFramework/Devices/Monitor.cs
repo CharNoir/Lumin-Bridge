@@ -23,15 +23,16 @@ namespace LuminBridgeFramework
         [JsonProperty("sdrToHdrWhiteLevel")]
         private int _sdrToHdrWhiteLevel;
         private bool _isHdrEnabled = false;
-        private static string ConfigDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs");
 
         // ───────────────────────────────────────────────────────────────
         // 🔷 Properties
         // ───────────────────────────────────────────────────────────────
-        public IntPtr hmonitor { get; set; }
+        public IntPtr HMonitor { get; set; }
         [JsonProperty("name")]
         public string Name { get; private set; }
         public IntPtr IconHwnd { get; set; }
+
+        private static string ConfigDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs");
 
         // ───────────────────────────────────────────────────────────────
         // 🔷 Constructors
@@ -149,7 +150,7 @@ namespace LuminBridgeFramework
         private void AdjustSdrBrightness(int desiredBrightness)
         {
             _brightness = desiredBrightness;
-            if (GetPhysicalMonitorsFromHMONITOR(hmonitor, 1, out var monitor))
+            if (GetPhysicalMonitorsFromHMONITOR(HMonitor, 1, out var monitor))
             {
                 SetMonitorBrightness(monitor.hPhysicalMonitor, (uint)desiredBrightness);
                 DestroyPhysicalMonitor(monitor.hPhysicalMonitor);
@@ -176,7 +177,7 @@ namespace LuminBridgeFramework
                 GetProcAddress(hmodule, 171)
             );
 
-            changeBrightness(hmonitor, PercentToMagic(desiredBrightness));
+            changeBrightness(HMonitor, PercentToMagic(desiredBrightness));
         }
 
         /// <summary>

@@ -14,8 +14,8 @@ namespace LuminBridgeFramework
 {
     public partial class SettingsForm : Form
     {
-        private List<BaseDevice> devices;
-        private SerialController serialController;
+        private List<BaseDevice> _devices;
+        private SerialController _serialController;
         public SettingsForm()
         {
             InitializeComponent();
@@ -24,16 +24,16 @@ namespace LuminBridgeFramework
 
         public void LoadSettings(List<BaseDevice> deviceList, SerialController serialController)
         {
-            this.serialController = serialController;
-            devices = deviceList;
+            this._serialController = serialController;
+            _devices = deviceList;
 
             cmbDevices.DataSource = null;
-            cmbDevices.DataSource = devices;
+            cmbDevices.DataSource = _devices;
             cmbDevices.DisplayMember = "FriendlyName";
-            cmbDevices.ValueMember = "IconId"; // or use a unique string like InstanceId if available
+            cmbDevices.ValueMember = "IconId";
 
-            txtAlias.Text = devices.FirstOrDefault()?.FriendlyName;
-            chkIsVisible.Checked = devices.FirstOrDefault().IsVisible;
+            txtAlias.Text = _devices.FirstOrDefault()?.FriendlyName;
+            chkIsVisible.Checked = _devices.FirstOrDefault().IsVisible;
 
             chkAutostart.Checked = AutostartHelper.IsEnabled();
 
@@ -42,16 +42,16 @@ namespace LuminBridgeFramework
 
         private void btnConnect_Click(object sender, EventArgs e)
         {
-            if (!serialController.IsConnected)
+            if (!_serialController.IsConnected)
             {
-                serialController.ConnectAndSync(devices);
+                _serialController.ConnectAndSync(_devices);
             }
             ColorBtnConnect();
         }
 
         private void ColorBtnConnect()
         {
-            if (serialController.IsConnected)
+            if (_serialController.IsConnected)
             {
                 btnConnect.BackColor = Color.Green;
                 btnConnect.Text = "Connected";
@@ -87,7 +87,7 @@ namespace LuminBridgeFramework
         {
             int selectedIndex = cmbDevices.SelectedIndex;
             cmbDevices.DataSource = null;
-            cmbDevices.DataSource = devices;
+            cmbDevices.DataSource = _devices;
             cmbDevices.DisplayMember = "FriendlyName";
             cmbDevices.ValueMember = "IconId";
             cmbDevices.SelectedIndex = selectedIndex;

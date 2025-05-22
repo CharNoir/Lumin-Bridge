@@ -15,30 +15,30 @@ namespace LuminBridgeFramework
 {
     public partial class MainForm : Form
     {
-        private List<NotifyIcon> trayIcons = new List<NotifyIcon>();
-        private MonitorController monitorController;
-        private SoundOutputController soundOutputController;
-        private List<IDeviceController> deviceControllers;
+        private List<NotifyIcon> _trayIcons = new List<NotifyIcon>();
+        private MonitorController _monitorController;
+        private SoundOutputController _soundOutputController;
+        private List<IDeviceController> _deviceControllers;
 
-        private SerialController serialController;
+        private SerialController _serialController;
 
-        private SettingsForm settingsForm;
+        private SettingsForm _settingsForm;
         private IKeyboardMouseEvents _hook;
 
         private ComPortWatcher _comWatcher;
         public MainForm()
         {
             InitializeComponent();
-            monitorController = new MonitorController();
-            soundOutputController = new SoundOutputController();
-            soundOutputController.VolumeChanged += OnSoundDeviceVolumeChanged;
+            _monitorController = new MonitorController();
+            _soundOutputController = new SoundOutputController();
+            _soundOutputController.VolumeChanged += OnSoundDeviceVolumeChanged;
 
-            deviceControllers = new List<IDeviceController>();
-            deviceControllers.Add(monitorController);
-            deviceControllers.Add(soundOutputController);
+            _deviceControllers = new List<IDeviceController>();
+            _deviceControllers.Add(_monitorController);
+            _deviceControllers.Add(_soundOutputController);
 
-            serialController = new SerialController();
-            serialController.OnValueReportReceived += HandleValueReport;
+            _serialController = new SerialController();
+            _serialController.OnValueReportReceived += HandleValueReport;
             CreateTrayIcons();
 
             _comWatcher = new ComPortWatcher(this);
@@ -48,7 +48,7 @@ namespace LuminBridgeFramework
 
         private void OnSoundDeviceVolumeChanged(SoundOutputDevice device)
         {
-            serialController.SendDeltaUpdatePacket(device);
+            _serialController.SendDeltaUpdatePacket(device);
         }
 
         private void CreateTrayIcons()
@@ -56,7 +56,7 @@ namespace LuminBridgeFramework
             _hook = Hook.GlobalEvents();
             _hook.MouseWheel += Global_MouseWheel;
 
-            foreach (var monitor in monitorController.Monitors)
+            foreach (var monitor in _monitorController.Monitors)
             {
                 var trayIcon = new NotifyIcon
                 {
@@ -82,7 +82,7 @@ namespace LuminBridgeFramework
                 SetTrayIconDetails(trayIcon, monitor);
                 trayIcon.Icon = CreateNumberIcon(monitor.IconId);
 
-                trayIcons.Add(trayIcon);
+                _trayIcons.Add(trayIcon);
             }
         }
 
@@ -113,24 +113,24 @@ namespace LuminBridgeFramework
 
         private void ShowSettings()
         {
-            if (settingsForm == null || settingsForm.IsDisposed)
+            if (_settingsForm == null || _settingsForm.IsDisposed)
             {
-                settingsForm = new SettingsForm();
-                settingsForm.LoadSettings(ListDevices(), serialController);
+                _settingsForm = new SettingsForm();
+                _settingsForm.LoadSettings(ListDevices(), _serialController);
             }
 
-            settingsForm.Show();
-            settingsForm.BringToFront();
+            _settingsForm.Show();
+            _settingsForm.BringToFront();
         }
 
         private List<BaseDevice> ListDevices()
         {
-            return deviceControllers.SelectMany(dc => dc.GetDevices()).ToList();
+            return _deviceControllers.SelectMany(dc => dc.GetDevices()).ToList();
         }
 
         private void Global_MouseWheel(object sender, MouseEventArgs e)
         {
-            foreach (var monitor in monitorController.Monitors)
+            foreach (var monitor in _monitorController.Monitors)
             {
                 var iconRect = GetTrayIconRect(monitor.IconHwnd, (uint)monitor.IconId);
                 var pt = Cursor.Position;
@@ -171,16 +171,16 @@ namespace LuminBridgeFramework
             monitor.IconHwnd = hwnd;
 
             Debug.WriteLine($"Monitor {monitor.FriendlyName} - Icon ID = {id}");
-            Debug.WriteLine($"Monitor {monitor.hmonitor} ");
+            Debug.WriteLine($"Monitor {monitor.HMonitor} ");
         }
 
         public void HandleValueReport(ValueReportPacket packet)
         {
-            foreach (IDeviceController controller in deviceControllers)
+            foreach (IDeviceController controller in _deviceControllers)
             {
                 controller.TryApplyValue(packet);
             }
-            monitorController.TryApplyValue(packet);
+            _monitorController.TryApplyValue(packet);
         }
 
         private void AsyncConnectAndSync(int delay = 0)
@@ -189,20 +189,20 @@ namespace LuminBridgeFramework
             {
                 if (delay > 0) 
                     Thread.Sleep(delay);
-                serialController.ConnectAndSync(ListDevices());
+                _serialController.ConnectAndSync(ListDevices());
             });
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            foreach (var trayIcon in trayIcons)
+            foreach (var trayIcon in _trayIcons)
             {
                 trayIcon.Visible = false;
                 trayIcon.Dispose();
             }
             
             _comWatcher.Dispose();
-            serialController.Dispose();
+            _serialController.Dispose();
 
             base.OnFormClosing(e);
         }

@@ -71,7 +71,7 @@ namespace LuminBridgeFramework
 
             var monitor = Monitor.Load(deviceName.TrimEnd('\0'));
 
-            monitor.hmonitor = hMonitor;
+            monitor.HMonitor = hMonitor;
 
             // Store the monitor in the list
             Monitors.Add(monitor);
