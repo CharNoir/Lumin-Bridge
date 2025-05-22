@@ -90,28 +90,30 @@ namespace LuminBridgeFramework
             UpdateMonitorInfo();
 
             int desiredBrightness = GetBrightness() + brightnessChange;
-            Console.WriteLine($"Adjusting brightness for {Name}: {desiredBrightness}%");
-            SetBrightness(desiredBrightness);
-
-            BrightnessChanged?.Invoke(this);
+            if (SetBrightness(desiredBrightness))
+            {
+                BrightnessChanged?.Invoke(this);
+                Console.WriteLine($"Adjusted brightness for {Name}: {desiredBrightness}%");
+            }
         }
 
         /// <summary>
         /// Sets monitor brightness. Chooses HDR or SDR method based on monitor status.
         /// </summary>
         /// <param name="desiredBrightness">Desired brightness percentage (0–100).</param>
-        public void SetBrightness(int desiredBrightness)
+        public bool SetBrightness(int desiredBrightness)
         {
             desiredBrightness = MathHelper.Clamp(desiredBrightness, _minBrightness, _maxBrightness);
 
             //UpdateMonitorInfo();
-
+            bool returnVal = false;
             if (_isHdrEnabled)
-                AdjustHdrBrightness(desiredBrightness);
+                returnVal = AdjustHdrBrightness(desiredBrightness);
             else
-                AdjustSdrBrightness(desiredBrightness);
+                returnVal = AdjustSdrBrightness(desiredBrightness);
 
             SaveConfig();
+            return returnVal;
         }
 
         /// <summary>
@@ -150,29 +152,36 @@ namespace LuminBridgeFramework
         /// Adjusts brightness using SDR-compatible APIs (Dxva2).
         /// </summary>
         /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
-        private void AdjustSdrBrightness(int desiredBrightness)
+        private bool AdjustSdrBrightness(int desiredBrightness)
         {
+            if (desiredBrightness == GetBrightness())
+                return false;
+
             _brightness = desiredBrightness;
             if (GetPhysicalMonitorsFromHMONITOR(HMonitor, 1, out var monitor))
             {
                 SetMonitorBrightness(monitor.hPhysicalMonitor, (uint)desiredBrightness);
                 DestroyPhysicalMonitor(monitor.hPhysicalMonitor);
             }
+            return true;
         }
 
         /// <summary>
         /// Adjusts brightness using HDR-specific white level manipulation.
         /// </summary>
         /// <param name="desiredBrightness">Brightness percentage (0–100).</param>
-        private void AdjustHdrBrightness(int desiredBrightness)
+        private bool AdjustHdrBrightness(int desiredBrightness)
         {
             desiredBrightness = MathHelper.Clamp(desiredBrightness, 5, _maxBrightness);
+
+            if (desiredBrightness == GetBrightness())
+                return false;
 
             _sdrToHdrWhiteLevel = desiredBrightness;
             if (IconHwnd == IntPtr.Zero)
             {
                 Console.WriteLine("Error: Monitor handle (hWnd) is not set.");
-                return;
+                return false;
             }
 
             var hmodule = LoadLibrary("dwmapi.dll");
@@ -181,6 +190,7 @@ namespace LuminBridgeFramework
             );
 
             changeBrightness(HMonitor, PercentToMagic(desiredBrightness));
+            return true;
         }
 
         /// <summary>
