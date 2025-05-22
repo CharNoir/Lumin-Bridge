@@ -22,6 +22,7 @@ namespace LuminBridgeFramework
 
         public List<Monitor> Monitors { get; private set; }
         public List<BaseDevice> GetDevices() => Monitors.Cast<BaseDevice>().ToList();
+        public event Action<Monitor> BrightnessChanged;
         public MonitorController()
         {
             Monitors = new List<Monitor>();
@@ -72,11 +73,16 @@ namespace LuminBridgeFramework
             var monitor = Monitor.Load(deviceName.TrimEnd('\0'));
 
             monitor.HMonitor = hMonitor;
-
+            monitor.BrightnessChanged += OnDeviceBrightnessChanged;
             // Store the monitor in the list
             Monitors.Add(monitor);
 
             return true; 
+        }
+
+        private void OnDeviceBrightnessChanged(Monitor device)
+        {
+            BrightnessChanged?.Invoke(device);
         }
 
         /// <summary>

@@ -31,6 +31,7 @@ namespace LuminBridgeFramework
         [JsonProperty("name")]
         public string Name { get; private set; }
         public IntPtr IconHwnd { get; set; }
+        public event Action<Monitor> BrightnessChanged;
 
         private static string ConfigDirectory => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs");
 
@@ -91,6 +92,8 @@ namespace LuminBridgeFramework
             int desiredBrightness = GetBrightness() + brightnessChange;
             Console.WriteLine($"Adjusting brightness for {Name}: {desiredBrightness}%");
             SetBrightness(desiredBrightness);
+
+            BrightnessChanged?.Invoke(this);
         }
 
         /// <summary>

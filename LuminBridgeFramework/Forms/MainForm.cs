@@ -30,8 +30,9 @@ namespace LuminBridgeFramework
         {
             InitializeComponent();
             _monitorController = new MonitorController();
+            _monitorController.BrightnessChanged += OnDeviceValueChanged;
             _soundOutputController = new SoundOutputController();
-            _soundOutputController.VolumeChanged += OnSoundDeviceVolumeChanged;
+            _soundOutputController.VolumeChanged += OnDeviceValueChanged;
 
             _deviceControllers = new List<IDeviceController>();
             _deviceControllers.Add(_monitorController);
@@ -46,7 +47,7 @@ namespace LuminBridgeFramework
             AsyncConnectAndSync(100);
         }
 
-        private void OnSoundDeviceVolumeChanged(SoundOutputDevice device)
+        private void OnDeviceValueChanged(BaseDevice device)
         {
             _serialController.SendDeltaUpdatePacket(device);
         }
