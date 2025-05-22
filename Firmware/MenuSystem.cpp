@@ -105,7 +105,7 @@ void MenuSystem::displayCurrent() {
             icon = (dev->value == 0) ? speakerMutedIcon32px : speakerIcon32px;
             break;
         case Brightness:
-            icon = (dev->value == 0) ? sunOffIcon32px : sunIcon32px;
+            icon = (dev->value <= 5) ? sunOffIcon32px : sunIcon32px;
             break;
         default:
             break;
