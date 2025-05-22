@@ -9,10 +9,10 @@ internal class Program
     {
         var monitors = new List<HdrMonitorInfo>();
 
-        using IDXGIFactory6 factory = CreateDXGIFactory2<IDXGIFactory6>(debug: true);
+        using IDXGIFactory1 factory = CreateDXGIFactory1<IDXGIFactory1>();
 
         uint adapterIndex = 0;
-        while (factory.EnumAdapterByGpuPreference(adapterIndex++, GpuPreference.Unspecified, out IDXGIAdapter1 adapter).Success)
+        while (factory.EnumAdapters1(adapterIndex++, out IDXGIAdapter1 adapter).Success)
         {
             uint outputIndex = 0;
             while (adapter.EnumOutputs(outputIndex++, out IDXGIOutput output).Success)
