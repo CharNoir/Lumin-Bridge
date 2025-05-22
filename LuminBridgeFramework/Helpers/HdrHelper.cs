@@ -36,12 +36,26 @@ namespace LuminBridgeFramework
         public static bool GetMonitorHdrStatus(string deviceName, bool forceRefresh = false)
         {
             var monitorInfo = GetMonitorStatus(deviceName, forceRefresh);
+            if (monitorInfo == null)
+            {
+                Debug.WriteLine($"Monitor '{deviceName}' not found in HDR report.");
+                return false;
+            }
             return monitorInfo.HdrEnabled;
         }
 
         private static Dictionary<string, HdrMonitorInfo> FetchHdrStatus()
         {
-            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HdrChecker.exe");
+            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HdrChecker\\HdrChecker.exe");
+
+            if (!File.Exists(exePath))
+            {
+                string message = $"CRITICAL ERROR: Required HDR helper executable not found.\n\n" +
+                                 $"Expected at: {exePath}\n\n" +
+                                 $"Make sure 'HdrChecker.exe' is deployed correctly in the 'HdrChecker' subfolder.";
+                Debug.WriteLine(message);
+                throw new FileNotFoundException(message);
+            }
 
             var startInfo = new ProcessStartInfo
             {
@@ -68,8 +82,11 @@ namespace LuminBridgeFramework
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Failed to get HDR info: " + ex.Message);
-                return new Dictionary<string, HdrMonitorInfo>();
+                string message = $"CRITICAL ERROR: Failed to execute or parse HDR monitor info.\n\n" +
+                                 $"Executable: {exePath}\n" +
+                                 $"Exception: {ex.Message}";
+                Debug.WriteLine(message);
+                throw new ApplicationException(message, ex);
             }
         }
     }
