@@ -39,13 +39,11 @@ namespace LuminBridgeFramework
 
             serialController = new SerialController();
             serialController.OnValueReportReceived += HandleValueReport;
-            //serialController.ConnectAndSync(ListDevices());
             CreateTrayIcons();
-            //RegisterForComNotifications();
 
             _comWatcher = new ComPortWatcher(this);
 
-            AsyncConnectAndSync();
+            AsyncConnectAndSync(100);
         }
 
         private void OnSoundDeviceVolumeChanged(SoundOutputDevice device)
@@ -62,33 +60,63 @@ namespace LuminBridgeFramework
             {
                 var trayIcon = new NotifyIcon
                 {
-                    Icon = SystemIcons.Information,
-                    Text = $"{monitor.FriendlyName}",
+                    
+                    Text = $"Monitor {monitor.FriendlyName}",
                     Visible = true
                 };
+
+                var contextMenu = new ContextMenuStrip();
+                contextMenu.Items.Add("Settings", null, (s, e) => ShowSettings());
+                contextMenu.Items.Add("Exit", null, (s, e) => Application.Exit());
+                trayIcon.ContextMenuStrip = contextMenu;
 
                 trayIcon.MouseClick += (sender, args) =>
                 {
                     if (args.Button == MouseButtons.Left)
                     {
                         ShowSettings();
-                        //MessageBox.Show($"Settings for {monitor.Name}");
                     }
                 };
 
                 // Set the ID and HWND for the tray icon
                 SetTrayIconDetails(trayIcon, monitor);
+                trayIcon.Icon = CreateNumberIcon(monitor.IconId);
 
                 trayIcons.Add(trayIcon);
             }
         }
+
+        private Icon CreateNumberIcon(int number)
+        {
+            const int size = 24;
+            using (var bmp = new Bitmap(size, size))
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.Transparent);
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                using (Font font = new Font("Arial", 22, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush brush = new SolidBrush(Color.Black))
+                {
+                    string text = number.ToString();
+                    SizeF textSize = g.MeasureString(text, font);
+                    float x = (size - textSize.Width) / 2;
+                    float y = (size - textSize.Height) / 2;
+                    g.DrawString(text, font, brush, x, y);
+                }
+
+                IntPtr hIcon = bmp.GetHicon();
+                return Icon.FromHandle(hIcon);
+            }
+        }
+
+
         private void ShowSettings()
         {
             if (settingsForm == null || settingsForm.IsDisposed)
             {
                 settingsForm = new SettingsForm();
                 settingsForm.LoadSettings(ListDevices(), serialController);
-                //settingsForm.LoadSettings(monitorManager.Monitors, audioManager.Devices);
             }
 
             settingsForm.Show();
@@ -139,10 +167,10 @@ namespace LuminBridgeFramework
             NativeWindow nativeWindow = (NativeWindow)windowField.GetValue(trayIcon);
             IntPtr hwnd = nativeWindow?.Handle ?? IntPtr.Zero;
 
-            monitor.IconId = id - 1;
+            monitor.IconId = id;
             monitor.IconHwnd = hwnd;
 
-            Debug.WriteLine($"Monitor {monitor.Name} - Icon ID = {id}");
+            Debug.WriteLine($"Monitor {monitor.FriendlyName} - Icon ID = {id}");
             Debug.WriteLine($"Monitor {monitor.hmonitor} ");
         }
 
@@ -155,16 +183,16 @@ namespace LuminBridgeFramework
             monitorController.TryApplyValue(packet);
         }
 
-        private void AsyncConnectAndSync()
+        private void AsyncConnectAndSync(int delay = 0)
         {
             Task.Run(() =>
             {
-                Thread.Sleep(2000);
+                if (delay > 0) 
+                    Thread.Sleep(delay);
                 serialController.ConnectAndSync(ListDevices());
             });
         }
 
-        // Dispose the tray icons properly when the form closes
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             foreach (var trayIcon in trayIcons)
@@ -228,7 +256,7 @@ namespace LuminBridgeFramework
                 if (wParam == ComPortWatcher.DBT_DEVICEARRIVAL)
                 {
                     Console.WriteLine("[COM] Device connected.");
-                    AsyncConnectAndSync();
+                    AsyncConnectAndSync(2000);
                 }
                 else if (wParam == ComPortWatcher.DBT_DEVICEREMOVECOMPLETE)
                 {
@@ -238,6 +266,5 @@ namespace LuminBridgeFramework
 
             base.WndProc(ref m);
         }
-
     }
 }
