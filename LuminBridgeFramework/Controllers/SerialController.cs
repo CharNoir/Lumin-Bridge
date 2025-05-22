@@ -63,7 +63,7 @@ namespace LuminBridgeFramework
             if (IdentifyAndConnect())
             {
                 Console.WriteLine("[Serial] Connection successful. Sending full device update...");
-                SendUpdate(devices);
+                Sync(devices);
             }
             else
             {
@@ -160,7 +160,7 @@ namespace LuminBridgeFramework
         /// Sends a full update of all devices including a reset command and individual updates.
         /// </summary>
         /// <param name="devicesList">The list of devices to sync.</param>
-        public void SendUpdate(List<BaseDevice> devicesList)
+        public void Sync(List<BaseDevice> devicesList)
         {
             try
             {

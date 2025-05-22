@@ -105,6 +105,7 @@
             this.chkIsVisible.TabIndex = 6;
             this.chkIsVisible.Text = "Show On Display";
             this.chkIsVisible.UseVisualStyleBackColor = true;
+            this.chkIsVisible.CheckedChanged += new System.EventHandler(this.chkIsVisible_CheckedChanged);
             // 
             // SettingsForm
             // 

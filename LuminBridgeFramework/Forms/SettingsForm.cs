@@ -73,6 +73,8 @@ namespace LuminBridgeFramework
                 selected.SaveConfig();
             }
             RefreshDevices();
+
+            _serialController.Sync(_devices);
         }
 
         private void cmbDevices_SelectedIndexChanged(object sender, EventArgs e)
@@ -99,6 +101,15 @@ namespace LuminBridgeFramework
                 AutostartHelper.Enable();
             else
                 AutostartHelper.Disable();
+        }
+
+        private void chkIsVisible_CheckedChanged(object sender, EventArgs e)
+        {
+            var selected = (BaseDevice)cmbDevices.SelectedItem;
+            if (selected != null)
+            {
+                selected.IsVisible = chkIsVisible.Checked;
+            }
         }
     }
 }
