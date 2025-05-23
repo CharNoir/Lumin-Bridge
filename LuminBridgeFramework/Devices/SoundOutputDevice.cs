@@ -46,10 +46,8 @@ namespace LuminBridgeFramework
 
         private void VolumeChanged(AudioVolumeNotificationData data)
         {
-            if (!data.EventContext.Equals(Guid.Empty))
-            {
-                VolumeChangedExternally?.Invoke(this);
-            }
+            //Console.WriteLine($"Volume changed externaly: {data.MasterVolume}, {Device.AudioEndpointVolume.MasterVolumeLevelScalar}");
+            VolumeChangedExternally?.Invoke(this);
         }
 
         public override Device ToProtocolDevice()
