@@ -11,6 +11,8 @@ namespace LuminBridgeFramework
     [JsonObject(MemberSerialization.OptIn)]
     public class SoundOutputDevice : BaseDevice
     {
+        private static readonly Guid AppEventContext = Guid.Parse("a7bacdaf-80e0-4c72-99b3-1c0b6554c0b4");
+
         public MMDevice Device { get; private set; }
         public event Action<SoundOutputDevice> VolumeChangedExternally;
 
@@ -19,6 +21,7 @@ namespace LuminBridgeFramework
             Device = device;
             FriendlyName = device.FriendlyName;
             Device.AudioEndpointVolume.OnVolumeNotification += VolumeChanged;
+            Device.AudioEndpointVolume.NotificationGuid = AppEventContext;
         }
 
         public SoundOutputDevice(){}
@@ -46,8 +49,8 @@ namespace LuminBridgeFramework
 
         private void VolumeChanged(AudioVolumeNotificationData data)
         {
-            //Console.WriteLine($"Volume changed externaly: {data.MasterVolume}, {Device.AudioEndpointVolume.MasterVolumeLevelScalar}");
-            VolumeChangedExternally?.Invoke(this);
+            if (!data.EventContext.Equals(AppEventContext))
+                VolumeChangedExternally?.Invoke(this);
         }
 
         public override Device ToProtocolDevice()
