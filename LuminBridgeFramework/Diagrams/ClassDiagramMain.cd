@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="NameAndType">
+  <Class Name="LuminBridgeFramework.ComPortWatcher" Collapsed="true">
+    <Position X="14.25" Y="9.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACAAAACBAAAAAAAABCAgAAAAiAIAABgAAAA=</HashCode>
+      <FileName>Controllers\ComPortWatcher.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="LuminBridgeFramework.MonitorController" Collapsed="true">
+    <Position X="19.75" Y="7.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAQAAAAAAAAAAAEAQIAAAAABAAgAAABAAAEAAIAA=</HashCode>
+      <FileName>Controllers\MonitorController.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="LuminBridgeFramework.SerialController" Collapsed="true">
+    <Position X="14.25" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAQKCAEADIgAAgIIgEAAgQApgCAAAAgCAQAAQ=</HashCode>
+      <FileName>Controllers\SerialController.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="LuminBridgeFramework.SoundOutputController" Collapsed="true">
+    <Position X="14.25" Y="7.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAABCAAAAEAAIAAAAABACECAIAAAAAAAgAA=</HashCode>
+      <FileName>Controllers\SoundOutputController.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="LuminBridgeFramework.MainForm">
+    <Position X="17.25" Y="8" Width="3.75" />
+    <Compartments>
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <NestedTypes>
+      <Struct Name="LuminBridgeFramework.MainForm.RECT" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Forms\MainForm.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+      <Struct Name="LuminBridgeFramework.MainForm.NOTIFYICONIDENTIFIER" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Forms\MainForm.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+    </NestedTypes>
+    <AssociationLine Name="_monitorController" Type="LuminBridgeFramework.MonitorController" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="19.312" Y="8" />
+        <Point X="19.312" Y="7.531" />
+        <Point X="19.75" Y="7.531" />
+      </Path>
+    </AssociationLine>
+    <AssociationLine Name="_soundOutputController" Type="LuminBridgeFramework.SoundOutputController" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="17.938" Y="8" />
+        <Point X="17.938" Y="7.5" />
+        <Point X="15.75" Y="7.5" />
+      </Path>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>CCAAjAAABCCEIAAAAACAAABCBFAAAAwQQAAAYRAAACA=</HashCode>
+      <FileName>Forms\MainForm.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="_monitorController" />
+      <Field Name="_serialController" />
+      <Field Name="_soundOutputController" />
+      <Field Name="_comWatcher" />
+    </ShowAsAssociation>
+    <ShowAsCollectionAssociation>
+      <Field Name="_deviceControllers" />
+    </ShowAsCollectionAssociation>
+  </Class>
+  <Interface Name="LuminBridgeFramework.IDeviceController">
+    <Position X="17" Y="5.25" Width="2.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAEAAAAAAAABAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Controllers\IDeviceController.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
